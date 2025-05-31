@@ -9,32 +9,29 @@ internal class Program
 
     private static async Task Main()
     {
-        try 
+        try
         {
-            string? botToken = Environment.GetEnvironmentVariable("BOT_TOKEN");
-            if (string.IsNullOrEmpty(botToken))
-                throw new Exception("Токен бота не найден в переменных окружения");
+            string? botToken = Environment.GetEnvironmentVariable("BOT_TOKEN") 
+                ?? throw new Exception("Токен не найден в переменных окружения");
             
-            Host mybot = new(botToken);
-            mybot.OnMessage += OnMessage;
-            await mybot.StartAsync();
+            Host myBot = new(botToken);
+            myBot.OnMessage += OnMessage;
+            await myBot.StartAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Фатальная ошибка: {ex}");
+            Console.WriteLine($"Критическая ошибка: {ex}");
             Environment.Exit(1);
         }
     }
 
     private static async void OnMessage(ITelegramBotClient client, Update update)
     {
-        try 
+        try
         {
-            if (update.Message is not { Text: { } messageText, Chat: { } chat })
+            if (update.Message is not { Text: { } messageText, Chat: { Id: var chatId } })
                 return;
 
-            long chatId = chat.Id;
-            
             // Проверяем текущее состояние пользователя
             if (userStates.TryGetValue(chatId, out string state))
             {
@@ -379,21 +376,26 @@ internal class Program
                 }
             }
             
-            await client.SetMyCommandsAsync(
-                commands: new[]
-                {
-                    new BotCommand { Command = "/start", Description = "Запуск бота" },
-                    new BotCommand { Command = "/theory", Description = "Изучение теории" },
-                    new BotCommand { Command = "/test", Description = "Создание теста" },
-                    new BotCommand { Command = "/results", Description = "Результаты" },
-                    new BotCommand { Command = "/exit", Description = "Выход" },
-                    new BotCommand { Command = "/help", Description = "Помощь" }
-                },
-                cancellationToken: CancellationToken.None);
+            await SetBotCommandsAsync(client);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка обработки сообщения: {ex}");
         }
+    }
+
+    private static async Task SetBotCommandsAsync(ITelegramBotClient client)
+    {
+        await client.SetMyCommandsAsync(
+            commands: new[]
+            {
+                new BotCommand { Command = "/start", Description = "Запуск бота" },
+                new BotCommand { Command = "/theory", Description = "Теория" },
+                new BotCommand { Command = "/test", Description = "Тестирование" },
+                new BotCommand { Command = "/results", Description = "Результаты" },
+                new BotCommand { Command = "/exit", Description = "Выход" },
+                new BotCommand { Command = "/help", Description = "Помощь" }
+            },
+            cancellationToken: CancellationToken.None);
     }
 }
