@@ -1,4 +1,4 @@
-﻿using Telegram.Bot;
+using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 
@@ -14,11 +14,21 @@ public class Host
 
     public void Start()
     {
-        _bot.StartReceiving(UpdateHandler, ErrorHandler);
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates = Array.Empty<UpdateType>()
+        };
+        
+        _bot.StartReceiving(
+            updateHandler: UpdateHandler,
+            pollingErrorHandler: ErrorHandler,
+            receiverOptions: receiverOptions
+        );
+        
         Console.WriteLine("Бот запущен!");
     }
 
-    private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
+    private async Task ErrorHandler(ITelegramBotClient client, Exception exception, CancellationToken token)
     {
         Console.WriteLine("Ошибка: " + exception.Message);
         await Task.CompletedTask;
@@ -26,16 +36,19 @@ public class Host
 
     private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
     {
-        var user = update.Message?.From;
-        if (user == null) return;
+        if (update.Message is not { } message)
+            return;
+            
+        if (message.Text is not { } messageText)
+            return;
 
-        // Формируем имя пользователя с фамилией (если она есть)
+        var user = message.From;
         string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
-
-        DateTime messageTime = update.Message!.Date.ToLocalTime();
+        DateTime messageTime = message.Date.ToLocalTime();
         string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
 
-        Console.WriteLine($"[{formattedTime}] Пользователь {fullName} с id @{update.Message?.From?.Username} написал: {update.Message?.Text ?? "[не текст]"}");
+        Console.WriteLine($"[{formattedTime}] Пользователь {fullName} (@{user.Username}) написал: {messageText}");
+        
         OnMessage?.Invoke(client, update);
         await Task.CompletedTask;
     }
