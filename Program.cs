@@ -17,6 +17,7 @@ internal class Program
             mybot.Start();
             mybot.OnMessage += OnMessage;
 
+            //Console.ReadLine(); // раскоментить для локального тестирования => комментить некст строчку
             Thread.Sleep(Timeout.Infinite);
         }
         catch (Exception ex)
