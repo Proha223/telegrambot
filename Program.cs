@@ -1,10 +1,11 @@
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 internal class Program
 {
-    private static Dictionary<long, string> userStates = new Dictionary<long, string>();
+    private static Dictionary<long, string> userStates = new();
 
     private static async Task Main()
     {
@@ -14,11 +15,9 @@ internal class Program
             if (string.IsNullOrEmpty(botToken))
                 throw new Exception("Токен бота не найден в переменных окружения");
             
-            Host mybot = new Host(botToken);
+            Host mybot = new(botToken);
             mybot.OnMessage += OnMessage;
-            mybot.Start();
-            
-            await Task.Delay(-1); // Бесконечное ожидание
+            await mybot.StartAsync();
         }
         catch (Exception ex)
         {
@@ -31,12 +30,11 @@ internal class Program
     {
         try 
         {
-            if (update.Message?.Text == null || update.Message?.Chat == null) 
+            if (update.Message is not { Text: { } messageText, Chat: { } chat })
                 return;
 
-            long chatId = update.Message.Chat.Id;
-            string messageText = update.Message.Text;
-
+            long chatId = chat.Id;
+            
             // Проверяем текущее состояние пользователя
             if (userStates.TryGetValue(chatId, out string state))
             {
@@ -381,15 +379,17 @@ internal class Program
                 }
             }
             
-            await client.SetMyCommandsAsync(new[]
-            {
-                new BotCommand { Command = "/start", Description = "Запуск бота" },
-                new BotCommand { Command = "/theory", Description = "Изучение теории" },
-                new BotCommand { Command = "/test", Description = "Создание нового теста" },
-                new BotCommand { Command = "/results", Description = "Результаты тестов" },
-                new BotCommand { Command = "/exit", Description = "Выход" },
-                new BotCommand { Command = "/help", Description = "Помощь" }
-            });
+            await client.SetMyCommandsAsync(
+                commands: new[]
+                {
+                    new BotCommand { Command = "/start", Description = "Запуск бота" },
+                    new BotCommand { Command = "/theory", Description = "Изучение теории" },
+                    new BotCommand { Command = "/test", Description = "Создание теста" },
+                    new BotCommand { Command = "/results", Description = "Результаты" },
+                    new BotCommand { Command = "/exit", Description = "Выход" },
+                    new BotCommand { Command = "/help", Description = "Помощь" }
+                },
+                cancellationToken: CancellationToken.None);
         }
         catch (Exception ex)
         {
