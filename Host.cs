@@ -1,64 +1,42 @@
-using Telegram.Bot;
-using Telegram.Bot.Exceptions;
+﻿using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 
 public class Host
 {
-    public event Action<ITelegramBotClient, Update>? OnMessage;
-    private readonly ITelegramBotClient _bot;
+    public Action<ITelegramBotClient, Update>? OnMessage;
+    private TelegramBotClient _bot;
 
     public Host(string token)
     {
         _bot = new TelegramBotClient(token);
     }
 
-    public async Task StartAsync()
+    public void Start()
     {
-        var receiverOptions = new ReceiverOptions
-        {
-            AllowedUpdates = Array.Empty<UpdateType>()
-        };
-
-        _bot.StartReceiving(
-            updateHandler: HandleUpdateAsync,
-            pollingErrorHandler: HandlePollingErrorAsync,
-            receiverOptions: receiverOptions
-        );
-
-        var me = await _bot.GetMeAsync();
-        Console.WriteLine($"Бот @{me.Username} запущен!");
-
-        await Task.Delay(-1); // Бесконечное ожидание
+        _bot.StartReceiving(UpdateHandler, ErrorHandler);
+        Console.WriteLine("Бот запущен!");
     }
 
-    private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
     {
-        try
-        {
-            if (update.Message is not { From: { } user })
-                return;
-
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {user.Username ?? user.FirstName}: {update.Message.Text ?? "[не текст]"}");
-            OnMessage?.Invoke(botClient, update);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка обработки: {ex}");
-        }
+        Console.WriteLine("Ошибка: " + exception.Message);
+        await Task.CompletedTask;
     }
 
-    private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
     {
-        var errorMessage = exception switch
-        {
-            ApiRequestException apiRequestException 
-                => $"Ошибка API: {apiRequestException.ErrorCode} - {apiRequestException.Message}",
-            _ => exception.ToString()
-        };
+        var user = update.Message?.From;
+        if (user == null) return;
 
-        Console.WriteLine(errorMessage);
-        return Task.CompletedTask;
+        // Формируем имя пользователя с фамилией (если она есть)
+        string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
+
+        DateTime messageTime = update.Message!.Date.ToLocalTime();
+        string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
+
+        Console.WriteLine($"[{formattedTime}] Пользователь {fullName} с id @{update.Message?.From?.Username} написал: {update.Message?.Text ?? "[не текст]"}");
+        OnMessage?.Invoke(client, update);
+        await Task.CompletedTask;
     }
 }
