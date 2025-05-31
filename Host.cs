@@ -14,7 +14,6 @@ public class Host
 
     public void Start()
     {
-        // Начинаем получать обновления
         _bot.StartReceiving(UpdateHandler, ErrorHandler);
         Console.WriteLine("Бот запущен!");
     }
@@ -30,15 +29,14 @@ public class Host
         var user = update.Message?.From;
         if (user == null) return;
 
+        // Формируем имя пользователя с фамилией (если она есть)
         string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
+
         DateTime messageTime = update.Message!.Date.ToLocalTime();
         string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
 
         Console.WriteLine($"[{formattedTime}] Пользователь {fullName} с id @{update.Message?.From?.Username} написал: {update.Message?.Text ?? "[не текст]"}");
-
-        // Если есть подписчики на событие OnMessage, вызываем их
         OnMessage?.Invoke(client, update);
-
         await Task.CompletedTask;
     }
 }
