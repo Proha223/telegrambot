@@ -1,6 +1,8 @@
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 public class Host
 {
@@ -12,33 +14,26 @@ public class Host
         _bot = new TelegramBotClient(token);
     }
 
-    public void Start()
+    public async Task StartAsync()
     {
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = Array.Empty<UpdateType>() // Получаем все типы обновлений
+            AllowedUpdates = new[] { UpdateType.Message }
         };
         
         _bot.StartReceiving(
-            updateHandler: UpdateHandler,
-            pollingErrorHandler: ErrorHandler,
+            updateHandler: HandleUpdateAsync,
+            pollingErrorHandler: HandlePollingErrorAsync,
             receiverOptions: receiverOptions
         );
         
-        var me = _bot.GetMeAsync().Result;
+        var me = await _bot.GetMeAsync();
         Console.WriteLine($"Бот @{me.Username} запущен! ID: {me.Id}");
         
-        // Бесконечное ожидание
-        Thread.Sleep(Timeout.Infinite);
+        await Task.Delay(-1); // Бесконечное ожидание
     }
 
-    private Task ErrorHandler(ITelegramBotClient client, Exception exception, CancellationToken token)
-    {
-        Console.WriteLine($"Ошибка: {exception.Message}");
-        return Task.CompletedTask;
-    }
-
-    private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
+    private async Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken cancellationToken)
     {
         try 
         {
@@ -56,5 +51,18 @@ public class Host
         {
             Console.WriteLine($"Ошибка обработки сообщения: {ex}");
         }
+    }
+
+    private Task HandlePollingErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
+    {
+        var errorMessage = exception switch
+        {
+            ApiRequestException apiRequestException
+                => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+            _ => exception.ToString()
+        };
+
+        Console.WriteLine(errorMessage);
+        return Task.CompletedTask;
     }
 }
