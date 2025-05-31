@@ -12,7 +12,7 @@ internal class Program
         Host mybot = new Host("7280957738:AAGlqHqmtM5zLa8IdYFon9TwLd6RihjPqNk");
         mybot.Start();
         mybot.OnMessage += OnMessage;
-        await Task.Delay(-1)
+        Console.ReadLine();
     }
 
     private static async void OnMessage(ITelegramBotClient client, Update update)
