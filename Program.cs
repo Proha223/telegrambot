@@ -9,9 +9,9 @@ internal class Program
 
     private static void Main()
     {
-        Host mybot = new Host("YOUR_BOT_TOKEN");
-        mybot.OnMessage += OnMessage;  // Подписываемся на обработчик сообщений до стартового вызова
-        mybot.Start();                  // Запускаем бота
+        Host mybot = new Host("7280957738:AAGlqHqmtM5zLa8IdYFon9TwLd6RihjPqNk");
+        mybot.Start();
+        mybot.OnMessage += OnMessage;
         Console.ReadLine();
     }
 
@@ -366,7 +366,6 @@ internal class Program
             }
         }
 
-        // Установка команд
         await client.SetMyCommands(new[]
         {
             new BotCommand { Command = "/start", Description = "Запуск бота" },
