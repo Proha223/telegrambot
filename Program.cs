@@ -9,7 +9,7 @@ internal class Program
 
     private static void Main()
     {
-        Host mybot = new Host("7280957738:AAGlqHqmtM5zLa8IdYFon9TwLd6RihjPqNk");
+        Host mybot = new Host("7280957738:AAEiepxLyZfj667V60Q9-4Rs94Vn5uW9ie8");
         mybot.Start();
         mybot.OnMessage += OnMessage;
         Console.ReadLine();
