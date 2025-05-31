@@ -17,8 +17,7 @@ internal class Program
             mybot.Start();
             mybot.OnMessage += OnMessage;
 
-            Console.WriteLine("Бот запущен. Для остановки нажмите Enter...");
-            Console.ReadLine(); // Оставляем для локального тестирования
+            Thread.Sleep(Timeout.Infinite);
         }
         catch (Exception ex)
         {
@@ -26,7 +25,6 @@ internal class Program
         }
     }
 
-    // Ваш существующий код обработки сообщений остается без изменений
     private static async void OnMessage(ITelegramBotClient client, Update update)
     {
         if (update.Message?.Text == null || update.Message?.Chat == null) return;
