@@ -1,20 +1,32 @@
-using System.ComponentModel.Design;
-using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
-
 internal class Program
 {
-    private static Dictionary<long, string> userStates = new Dictionary<long, string>();
+    private static Dictionary<long, string> userStates = new();
+    private static Host? mybot;
 
     private static void Main()
     {
-        Host mybot = new Host("7280957738:AAEiepxLyZfj667V60Q9-4Rs94Vn5uW9ie8");
-        mybot.Start();
-        mybot.OnMessage += OnMessage;
-        Console.ReadLine();
+        try
+        {
+            string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+                         ?? "7280957738:AAEiepxLyZfj667V60Q9-4Rs94Vn5uW9ie8";
+
+            mybot = new Host(token);
+            mybot.Start();
+            mybot.OnMessage += OnMessage;
+
+            Console.WriteLine("Бот запущен. Для остановки нажмите Enter...");
+            Console.ReadLine(); // Оставляем для локального тестирования
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex}");
+        }
     }
 
+    // Ваш существующий код обработки сообщений остается без изменений
     private static async void OnMessage(ITelegramBotClient client, Update update)
     {
         if (update.Message?.Text == null || update.Message?.Chat == null) return;
