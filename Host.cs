@@ -14,21 +14,12 @@ public class Host
 
     public void Start()
     {
-        var receiverOptions = new ReceiverOptions
-        {
-            AllowedUpdates = Array.Empty<UpdateType>()
-        };
-        
-        _bot.StartReceiving(
-            updateHandler: UpdateHandler,
-            pollingErrorHandler: ErrorHandler,
-            receiverOptions: receiverOptions
-        );
-        
+        // Начинаем получать обновления
+        _bot.StartReceiving(UpdateHandler, ErrorHandler);
         Console.WriteLine("Бот запущен!");
     }
 
-    private async Task ErrorHandler(ITelegramBotClient client, Exception exception, CancellationToken token)
+    private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
     {
         Console.WriteLine("Ошибка: " + exception.Message);
         await Task.CompletedTask;
@@ -36,20 +27,18 @@ public class Host
 
     private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
     {
-        if (update.Message is not { } message)
-            return;
-            
-        if (message.Text is not { } messageText)
-            return;
+        var user = update.Message?.From;
+        if (user == null) return;
 
-        var user = message.From;
         string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
-        DateTime messageTime = message.Date.ToLocalTime();
+        DateTime messageTime = update.Message!.Date.ToLocalTime();
         string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
 
-        Console.WriteLine($"[{formattedTime}] Пользователь {fullName} (@{user.Username}) написал: {messageText}");
-        
+        Console.WriteLine($"[{formattedTime}] Пользователь {fullName} с id @{update.Message?.From?.Username} написал: {update.Message?.Text ?? "[не текст]"}");
+
+        // Если есть подписчики на событие OnMessage, вызываем их
         OnMessage?.Invoke(client, update);
+
         await Task.CompletedTask;
     }
 }
