@@ -1,10 +1,12 @@
 using Telegram.Bot.Types;
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using MySql.Data.MySqlClient;
 internal class Program
 {
     private static Dictionary<long, string> userStates = new();
     private static Host? mybot;
+    private static Database? _database;
 
     private static void Main()
     {
@@ -14,7 +16,14 @@ internal class Program
                ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
             /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
                          ?? "Телеграм_Токен";*/ // Для локального тестирования 
+            /*string connectionString = "server=localhost;database=telegrambot;user=root;password=root;";
+            _database = new Database(connectionString); // Для локального тестирования*/
 
+            // Получаем строку подключения к MySQL из переменных окружения
+            string connectionString = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING")
+               ?? throw new InvalidOperationException("MYSQL_CONNECTION_STRING переменная окружения не задана");
+
+            _database = new Database(connectionString);
             mybot = new Host(token);
             mybot.Start();
             mybot.OnMessage += OnMessage;
@@ -30,10 +39,23 @@ internal class Program
 
     private static async void OnMessage(ITelegramBotClient client, Update update)
     {
-        if (update.Message?.Text == null || update.Message?.Chat == null) return;
+        if (update.Message?.Text == null || update.Message?.Chat == null || update.Message.From == null)
+            return;
 
+        long userId = update.Message.From.Id;
         long chatId = update.Message.Chat.Id;
         string messageText = update.Message.Text;
+
+        // Автоматическая регистрация пользователя при первом сообщении
+        if (!_database.UserExists(userId))
+        {
+            string firstName = update.Message.From.FirstName ?? "";
+            string lastName = update.Message.From.LastName ?? "";
+            string username = update.Message.From.Username ?? "";
+
+            _database.RegisterUser(userId, firstName, lastName, username);
+            //Console.WriteLine($"Зарегистрирован новый пользователь: {firstName} {lastName} (@{username})");
+        }
 
         // Проверяем текущее состояние пользователя
         if (userStates.TryGetValue(chatId, out string state))
