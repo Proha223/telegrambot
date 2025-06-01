@@ -30,7 +30,7 @@ public class Database : IDisposable
     public void RegisterUser(long userId, string firstName, string lastName, string username)
     {
         using var cmd = new MySqlCommand(
-            "INSERT INTO users (id, first_name, last_name, username, role, register_date) " +Add commentMore actions
+            "INSERT INTO users (id, first_name, last_name, username, role, register_date) " +
             "VALUES (@id, @firstName, @lastName, @username, 'user', NOW())", _connection); // Убрать , Now() Если что
 
         cmd.Parameters.AddWithValue("@id", userId);
