@@ -1,4 +1,4 @@
-using MySql.Data.MySqlClient;Add commentMore actions
+using MySql.Data.MySqlClient;
 using System;
 
 public class Database : IDisposable
