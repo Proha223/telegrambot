@@ -333,9 +333,17 @@ internal class Program
                 case "/results":
                     int userIdResult = _database.GetUserIdByTelegramId(userTelegramId);
                     int totalPointsResult = _database.GetUserTotalPoints(userIdResult);
+
+                    // Получаем общее количество вопросов в базе
+                    int totalQuestions = _database.GetTotalQuestionsCount();
+
+                    // Рассчитываем процент прохождения
+                    double percentage = totalQuestions > 0 ? Math.Round((double)totalPointsResult / totalQuestions * 100, 1) : 0;
+
                     await client.SendMessage(
                         chatId: chatId,
-                        text: $"Ваши баллы: {totalPointsResult}");
+                        text: $"Ваши баллы: {totalPointsResult}/{totalQuestions}\n" +
+                              $"Процент прохождения: {percentage}%");
                     break;
 
                 default:
