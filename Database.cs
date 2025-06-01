@@ -45,28 +45,40 @@ public class Database : IDisposable
     {
         _connection?.Dispose();
     }
-    
+
     public List<TestQuestion> GetTestQuestions()
     {
         var questions = new List<TestQuestion>();
-        
-        using var cmd = new MySqlCommand("SELECT * FROM tests", _connection);
-        using var reader = cmd.ExecuteReader();
-        
-        while (reader.Read())
+
+        try
         {
-            questions.Add(new TestQuestion
+            using var cmd = new MySqlCommand("SELECT * FROM tests", _connection);
+            using var reader = cmd.ExecuteReader();
+
+            Console.WriteLine($"Получение вопросов из базы... Найдено записей: {reader.HasRows}");
+
+            while (reader.Read())
             {
-                TestId = reader.GetInt32("test_id"),
-                QuestionText = reader.GetString("question_text"),
-                Option1 = reader.GetString("option1"),
-                Option2 = reader.GetString("option2"),
-                Option3 = reader.IsDBNull(reader.GetOrdinal("option3")) ? null : reader.GetString("option3"),
-                Option4 = reader.IsDBNull(reader.GetOrdinal("option4")) ? null : reader.GetString("option4"),
-                CorrectAnswer = reader.GetInt32("correct_answer")
-            });
+                var question = new TestQuestion
+                {
+                    TestId = reader.GetInt32("test_id"),
+                    QuestionText = reader.GetString("question_text"),
+                    Option1 = reader.GetString("option1"),
+                    Option2 = reader.GetString("option2"),
+                    Option3 = reader.IsDBNull(reader.GetOrdinal("option3")) ? null : reader.GetString("option3"),
+                    Option4 = reader.IsDBNull(reader.GetOrdinal("option4")) ? null : reader.GetString("option4"),
+                    CorrectAnswer = reader.GetInt32("correct_answer")
+                };
+
+                Console.WriteLine($"Добавлен вопрос: {question.QuestionText}");
+                questions.Add(question);
+            }
         }
-        
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при получении вопросов: {ex.Message}");
+        }
+
         return questions;
     }
 
@@ -82,14 +94,14 @@ public class Database : IDisposable
         using var cmd = new MySqlCommand(
             "INSERT INTO userAnswers (user_id, test_id, chosen_answer, is_correct) " +
             "VALUES (@userId, @testId, @chosenAnswer, @isCorrect)", _connection);
-            
+
         cmd.Parameters.AddWithValue("@userId", userId);
         cmd.Parameters.AddWithValue("@testId", testId);
         cmd.Parameters.AddWithValue("@chosenAnswer", chosenAnswer);
         cmd.Parameters.AddWithValue("@isCorrect", isCorrect);
-        
+
         cmd.ExecuteNonQuery();
-        
+
         // Обновляем общий счет
         UpdateUserScore(userId, isCorrect ? 1 : 0);
     }
@@ -100,7 +112,7 @@ public class Database : IDisposable
         using var checkCmd = new MySqlCommand("SELECT COUNT(*) FROM userScores WHERE user_id = @userId", _connection);
         checkCmd.Parameters.AddWithValue("@userId", userId);
         bool exists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
-        
+
         if (exists)
         {
             using var updateCmd = new MySqlCommand(
