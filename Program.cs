@@ -40,9 +40,8 @@ internal class Program
             _database = new Database(connectionString);
 
             mybot = new Host(token);
-            mybot.OnMessage += OnMessage;
             mybot.Start();
-            //mybot.OnMessage += OnMessage;
+            mybot.OnMessage += OnMessage;
 
             Thread.Sleep(Timeout.Infinite);
             //Console.ReadLine(); // Оставляем для локального тестирования => КОММЕНТИТЬ ПРЕД СТРОКУ
