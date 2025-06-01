@@ -15,7 +15,7 @@ internal class Program
             string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
                ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
             /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-                         ?? "7476081986:AAFFHHi26MlxbRuCNAA4h5zyE9Nzlz4k_Tc"; // Для локального тестирования */
+                         ?? ""; // Для локального тестирования */
 
             string connectionString;
 
@@ -23,11 +23,11 @@ internal class Program
             if (Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT") != null)
             {
                 // Получаем параметры подключения из переменных окружения Railway
-                string dbHost = Environment.GetEnvironmentVariable("MYSQLHOST") ?? "localhost";
+                string dbHost = Environment.GetEnvironmentVariable("MYSQLHOST") ?? throw new Exception("MYSQLHOST не установлен");
                 string dbPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
-                string dbUser = Environment.GetEnvironmentVariable("MYSQLUSER") ?? "root";
-                string dbPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD") ?? "";
-                string dbName = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "telegrambot";
+                string dbUser = Environment.GetEnvironmentVariable("MYSQLUSER") ?? throw new Exception("MYSQLUSER не установлен");
+                string dbPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD") ?? throw new Exception("MYSQLPASSWORD не установлен");
+                string dbName = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? throw new Exception("MYSQLDATABASE не установлен");
 
                 connectionString = $"server={dbHost};port={dbPort};database={dbName};user={dbUser};password={dbPassword};";
             }
