@@ -20,20 +20,20 @@ public class Database : IDisposable
         }
     }
 
-    public bool UserExists(long userId)
+    public bool UserExists(long userTelegramId)
     {
-        using var cmd = new MySqlCommand("SELECT COUNT(*) FROM users WHERE id = @userId", _connection);
-        cmd.Parameters.AddWithValue("@userId", userId);
+        using var cmd = new MySqlCommand("SELECT COUNT(*) FROM users WHERE userTelegramId = @userTelegramId", _connection);
+        cmd.Parameters.AddWithValue("@userTelegramId", userTelegramId);
         return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
     }
 
-    public void RegisterUser(long userId, string firstName, string lastName, string username)
+    public void RegisterUser(long userTelegramId, string firstName, string lastName, string username)
     {
         using var cmd = new MySqlCommand(
-            "INSERT INTO users (id, first_name, last_name, username, role, register_date) " +
-            "VALUES (@id, @firstName, @lastName, @username, 'user', NOW())", _connection); // Убрать , Now() Если что
+            "INSERT INTO users (first_name, last_name, username, role, register_date, userTelegramId) " +
+            "VALUES (@firstName, @lastName, @username, 'user', NOW(), @userTelegramId)", _connection);
 
-        cmd.Parameters.AddWithValue("@id", userId);
+        cmd.Parameters.AddWithValue("@userTelegramId", userTelegramId);
         cmd.Parameters.AddWithValue("@firstName", firstName);
         cmd.Parameters.AddWithValue("@lastName", lastName);
         cmd.Parameters.AddWithValue("@username", username);
