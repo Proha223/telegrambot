@@ -330,9 +330,11 @@ internal class Program
                     break;
 
                 case "/results":
+                    int userIdResult = _database.GetUserIdByTelegramId(userTelegramId);
+                    int totalPointsResult = _database.GetUserTotalPoints(userIdResult);
                     await client.SendMessage(
                         chatId: chatId,
-                        text: "Ваши баллы null/null"); // null - баллы из бд
+                        text: $"Ваши баллы: {totalPointsResult}");
                     break;
 
                 default:
@@ -343,6 +345,37 @@ internal class Program
             }
         }
 
+        private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
+        {
+            var options = new List<string>
+            {
+                $"1 - {question.Option1}",
+                $"2 - {question.Option2}"
+            };
+            
+            if (!string.IsNullOrEmpty(question.Option3))
+                options.Add($"3 - {question.Option3}");
+            if (!string.IsNullOrEmpty(question.Option4))
+                options.Add($"4 - {question.Option4}");
+            
+            string questionText = $"Вопрос №{questionNumber} (из {totalQuestions}):\n" +
+                                 $"{question.QuestionText}\n\n" +
+                                 string.Join("\n", options) +
+                                 "\n\nДля выхода из теста - /exit";
+            
+            var replyKeyboard = new ReplyKeyboardMarkup(
+                Enumerable.Range(1, options.Count)
+                    .Select(x => new KeyboardButton(x.ToString()))
+                    .Chunk(2))
+            {
+                ResizeKeyboard = true
+            };
+            
+            await client.SendMessage(
+                chatId: chatId,
+                text: questionText,
+                replyMarkup: replyKeyboard);
+        }
         await client.SetMyCommands(new[]
         {
             new BotCommand { Command = "/start", Description = "Запуск бота" },
