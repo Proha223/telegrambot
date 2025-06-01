@@ -126,6 +126,11 @@ public class Database : IDisposable
         var result = cmd.ExecuteScalar();
         return result == null ? 0 : Convert.ToInt32(result);
     }
+    public int GetTotalQuestionsCount()
+    {
+        using var cmd = new MySqlCommand("SELECT COUNT(*) FROM tests", _connection);
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
 }
 
 public class TestQuestion
