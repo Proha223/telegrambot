@@ -182,31 +182,19 @@ internal class Program
                     }
                     else if (messageText == "Начать")
                     {
-                        Console.WriteLine($"Пользователь {chatId} начал тест");
-
                         var questions = _database.GetTestQuestions();
-                        Console.WriteLine($"Получено вопросов: {questions.Count}");
-
                         if (questions.Count == 0)
                         {
                             await client.SendMessage(
                                 chatId: chatId,
-                                text: "Извините, в базе данных нет доступных вопросов для теста.");
+                                text: "В базе данных нет вопросов для теста.");
                             return;
                         }
 
-                        userTests[chatId] = (questions, 0);
-                        Console.WriteLine($"Первый вопрос подготовлен для {chatId}");
+                        userTests[chatId] = (questions, 0); // Сохраняем вопросы и текущий индекс (0)
 
                         await SendQuestion(client, chatId, questions[0], 1, questions.Count);
                         userStates[chatId] = "TEST_IN_PROGRESS";
-                        Console.WriteLine($"Состояние пользователя {chatId} изменено на TEST_IN_PROGRESS");
-                    }
-                    else
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Для запуска теста нажмите кнопку 'Начать' или введите /exit для выхода");
                     }
                     break;
 
@@ -370,46 +358,33 @@ internal class Program
     }
     private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
     {
-        try
-        {
-            Console.WriteLine($"Подготовка вопроса {questionNumber} для чата {chatId}");
+        var options = new List<string>
+    {
+        $"1 - {question.Option1}",
+        $"2 - {question.Option2}"
+    };
 
-            var options = new List<string>
+        if (!string.IsNullOrEmpty(question.Option3))
+            options.Add($"3 - {question.Option3}");
+        if (!string.IsNullOrEmpty(question.Option4))
+            options.Add($"4 - {question.Option4}");
+
+        string questionText = $"Вопрос №{questionNumber} (из {totalQuestions}):\n" +
+                             $"{question.QuestionText}\n\n" +
+                             string.Join("\n", options) +
+                             "\n\nДля выхода из теста - /exit";
+
+        var replyKeyboard = new ReplyKeyboardMarkup(
+            Enumerable.Range(1, options.Count)
+                .Select(x => new KeyboardButton(x.ToString()))
+                .Chunk(2))
         {
-            $"1 - {question.Option1}",
-            $"2 - {question.Option2}"
+            ResizeKeyboard = true
         };
 
-            if (!string.IsNullOrEmpty(question.Option3))
-                options.Add($"3 - {question.Option3}");
-            if (!string.IsNullOrEmpty(question.Option4))
-                options.Add($"4 - {question.Option4}");
-
-            string questionText = $"Вопрос №{questionNumber} (из {totalQuestions}):\n" +
-                                 $"{question.QuestionText}\n\n" +
-                                 string.Join("\n", options) +
-                                 "\n\nДля выхода из теста - /exit";
-
-            Console.WriteLine($"Текст вопроса: {questionText}");
-
-            var replyKeyboard = new ReplyKeyboardMarkup(
-                Enumerable.Range(1, options.Count)
-                    .Select(x => new KeyboardButton(x.ToString()))
-                    .Chunk(2))
-            {
-                ResizeKeyboard = true
-            };
-
-            await client.SendMessage(
-                chatId: chatId,
-                text: questionText,
-                replyMarkup: replyKeyboard);
-
-            Console.WriteLine($"Вопрос отправлен пользователю {chatId}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при отправке вопроса: {ex.Message}");
-        }
+        await client.SendMessage(
+            chatId: chatId,
+            text: questionText,
+            replyMarkup: replyKeyboard);
     }
 }
