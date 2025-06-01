@@ -1,75 +1,392 @@
-using Telegram.Bot;
-using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
-using System.Threading;
-using Telegram.Bot.Types.Enums;
-
-public class Host
+using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
+internal class Program
 {
-    public Action<ITelegramBotClient, Update>? OnMessage;
-    private readonly TelegramBotClient _bot;
-    private readonly CancellationTokenSource _cts = new();
+    private static Dictionary<long, string> userStates = new();
+    private static Host? mybot;
 
-    public Host(string token)
-    {
-        _bot = new TelegramBotClient(token);
-    }
-
-    public void Start()
+    private static void Main()
     {
         try
         {
-            // В версии 22.5.1 просто запускаем получение сообщений без отключения вебхука
-            var receiverOptions = new ReceiverOptions
+            string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+               ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
+            /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+                         ?? "Телеграм_Токен";*/ // Для локального тестирования 
+
+            mybot = new Host(token);
+            mybot.Start();
+            mybot.OnMessage += OnMessage;
+
+            Thread.Sleep(Timeout.Infinite);
+            //Console.ReadLine(); // Оставляем для локального тестирования => КОММЕНТИТЬ ПРЕД СТРОКУ
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex}");
+        }
+    }
+
+    private static async void OnMessage(ITelegramBotClient client, Update update)
+    {
+        if (update.Message?.Text == null || update.Message?.Chat == null) return;
+
+        long chatId = update.Message.Chat.Id;
+        string messageText = update.Message.Text;
+
+        // Проверяем текущее состояние пользователя
+        if (userStates.TryGetValue(chatId, out string state))
+        {
+            switch (state)
             {
-                AllowedUpdates = Array.Empty<UpdateType>() // Получаем все типы обновлений
-            };
+                case "WAITING_TEST_TYPE":
+                    switch (messageText)
+                    {
+                        case "Быстрый тест":
+                            if (messageText == "/exit")
+                            {
+                                await client.SendMessage(
+                                        chatId: chatId,
+                                        text: "Вы успешно покинули тест!");
+                                userStates.Remove(chatId);
+                            }
+                            var replyKeyboardFastTest = new ReplyKeyboardMarkup(new[]
+                            {
+                                new KeyboardButton[] { "Начать" }
+                            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Тест создан. Для продолжения нажмите кнопку \"Начать\"",
+                                replyMarkup: replyKeyboardFastTest);
+                            userStates[chatId] = "FAST_TEST_READY";
+                            break;
 
-            _bot.StartReceiving(
-                updateHandler: HandleUpdateAsync,
-                errorHandler: HandleErrorAsync,
-                receiverOptions: receiverOptions,
-                cancellationToken: _cts.Token
-            );
+                        case "Настраиваемый":
+                            var replyKeyboardCustom = new ReplyKeyboardMarkup(new[]
+                                {
+                                new KeyboardButton[] { "test1", "test2" }
+                            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Выберите действие:",
+                                replyMarkup: replyKeyboardCustom);
+                            userStates[chatId] = "CUSTOM_TEST_OPTIONS";
+                            break;
 
-            Console.WriteLine("Бот успешно запущен в режиме polling!");
+                        case "/exit":
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули выбор типа теста!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                            userStates.Remove(chatId);
+                            break;
+
+                        default:
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Для выбора типа теста используйте кнопки или текст с кнопок!\nВыход из выбора типа теста - /exit");
+                            break;
+                    }
+                    break;
+
+                case "WAITING_THEORY_TYPE":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули выбор тем для изучения!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                        break;
+                    }
+                    switch (messageText)
+                    {
+                        case "Теория1": // Заменить по названию темы
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "1"); // Текст теории по теме
+                            userStates.Remove(chatId);
+                            break;
+
+                        case "Теория2": // Заменить по названию темы
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "2"); // Текст теории по теме
+                            userStates.Remove(chatId);
+                            break;
+
+                        default:
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Для выбора темы используйте кнопки или текст с кнопок!\nВыход из выбора тем - /exit");
+                            break;
+                    }
+                    break;
+
+                case "FAST_TEST_READY":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули запуск теста!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                    }
+                    else if (messageText == "Начать")
+                    {
+                        var replyKeyboardTest1 = new ReplyKeyboardMarkup(new[]
+                        {
+                            new KeyboardButton[] { "1", "2", "3", "4" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вопрос №1:\nКакой вариант верный?\n1 - Неверный\n2 - Верный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit",
+                            replyMarkup: replyKeyboardTest1);
+                        userStates[chatId] = "TEST_1_QUESTION_1";
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                        chatId: chatId,
+                        text: "Для запуска теста напишите или нажмите кнопку \"Начать\"!\nВыход - /exit");
+                    }
+                    break;
+
+                case "TEST_1_QUESTION_1":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули тест!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                    }
+                    else if (messageText == "1" || messageText == "3" || messageText == "4")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Не правильно ❌"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
+                        userStates[chatId] = "TEST_1_QUESTION_2";
+                    }
+                    else if (messageText == "2")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Верно ✅"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
+                        userStates[chatId] = "TEST_1_QUESTION_2";
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №1:\nКакой вариант верный?\n1 - Неверный\n2 - Верный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
+                    }
+                    break;
+
+                case "TEST_1_QUESTION_2":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули тест!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                    }
+                    else if (messageText == "2" || messageText == "3" || messageText == "4")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Не правильно ❌"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
+                        userStates[chatId] = "TEST_1_QUESTION_3";
+                    }
+                    else if (messageText == "1")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Верно ✅"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
+                        userStates[chatId] = "TEST_1_QUESTION_3";
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
+                    }
+                    break;
+
+                case "TEST_1_QUESTION_3":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули тест!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                    }
+                    else if (messageText == "1" || messageText == "2" || messageText == "3")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Не правильно ❌"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Поздравляю! Вы прошли тест. Узнать баллы - /results",
+                            replyMarkup: new ReplyKeyboardRemove()); // Добавить выгрузку баллов из бд
+                        userStates.Remove(chatId); // Сбрасываем состояние
+                    }
+                    else if (messageText == "4")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Верно ✅"); // Добавить баллы пользователю
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Поздравляю! Вы прошли тест. Узнать баллы - /results",
+                            replyMarkup: new ReplyKeyboardRemove()); // Добавить выгрузку баллов из бд
+                        userStates.Remove(chatId); // Сбрасываем состояние
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
+                    }
+                    break;
+
+
+                case "CUSTOM_TEST_OPTIONS":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули настройку теста!",
+                                replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                    }
+                    else if (messageText == "test1" || messageText == "test2") // Изменить на названия тестов в НАСТРАИМОВОМ ТИПЕ ТЕСТА
+                    {
+                        await client.SendMessage(
+                        chatId: chatId,
+                        text: $"Вы выбрали: {messageText}");
+                        userStates.Remove(chatId); // Сбрасываем состояние
+                    }
+                    else
+                    {
+                        goto default;
+                    }
+                    break;
+
+                default:
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Для настройки теста используйте кнопки или текст с кнопок!\nВыход из выбора типа теста - /exit");
+                    break;
+            }
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Ошибка при запуске бота: {ex}");
-            throw;
+            // Если состояния нет, обрабатываем основные команды
+            switch (messageText)
+            {
+                case "/start":
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Добро пожаловать!\n/theory - для изучения теории\n/test - создать новый тест",
+                        replyParameters: update.Message.MessageId,
+                        replyMarkup: new ReplyKeyboardRemove());
+                    break;
+
+                case "/theory":
+                    var replyKeyboardTheory = new ReplyKeyboardMarkup(new[]
+                    {
+                        new KeyboardButton[] { "Теория1", "Теория2" }
+                    })
+                    {
+                        ResizeKeyboard = true,
+                        OneTimeKeyboard = true
+                    };
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Выберите тему для изучения",
+                        replyMarkup: replyKeyboardTheory);
+                    userStates[chatId] = "WAITING_THEORY_TYPE";
+                    break;
+
+                case "/test":
+                    var replyKeyboardNew = new ReplyKeyboardMarkup(new[]
+                    {
+                        new KeyboardButton[] { "Быстрый тест", "Настраиваемый" }
+                    })
+                    {
+                        ResizeKeyboard = true,
+                        OneTimeKeyboard = true
+                    };
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Выберите тип теста",
+                        replyMarkup: replyKeyboardNew);
+                    userStates[chatId] = "WAITING_TEST_TYPE";
+                    break;
+
+                case "/help":
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "По всем вопросам 👉🏻 @devGLoWie");
+                    break;
+
+                case "/results":
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Ваши баллы null/null"); // null - баллы из бд
+                    break;
+
+                default:
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Пиши /start для того, чтобы начать пользоваться ботом!");
+                    break;
+            }
         }
-    }
 
-    public void Stop()
-    {
-        _cts.Cancel();
-    }
-
-    private async Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken cancellationToken)
-    {
-        try
+        await client.SetMyCommands(new[]
         {
-            var user = update.Message?.From;
-            if (user == null) return;
-
-            string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
-            DateTime messageTime = update.Message!.Date.ToLocalTime();
-            string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
-
-            Console.WriteLine($"[{formattedTime}] Сообщение от {fullName} (@{user.Username}): {update.Message.Text ?? "[не текст]"}");
-
-            OnMessage?.Invoke(client, update);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка обработки обновления: {ex}");
-        }
-    }
-
-    private Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
-    {
-        Console.WriteLine($"Ошибка в работе бота: {exception}");
-        return Task.CompletedTask;
+            new BotCommand { Command = "/start", Description = "Запуск бота" },
+            new BotCommand { Command = "/theory", Description = "Изучение теории" },
+            new BotCommand { Command = "/test", Description = "Создание нового теста" },
+            new BotCommand { Command = "/results", Description = "Результаты тестов" },
+            new BotCommand { Command = "/exit", Description = "Выход" },
+            new BotCommand { Command = "/help", Description = "Помощь" }
+        });
     }
 }
