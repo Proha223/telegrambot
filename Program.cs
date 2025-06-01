@@ -335,7 +335,7 @@ internal class Program
                     int totalPointsResult = _database.GetUserTotalPoints(userIdResult);
                     await client.SendMessage(
                         chatId: chatId,
-                        text: $"Ваши баллы: {totalPointsResult}");
+                        text: $"Ваши баллы: {totalPointsResult}/{questions.Count}");
                     break;
 
                 default:
