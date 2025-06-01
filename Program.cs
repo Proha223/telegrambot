@@ -1,10 +1,12 @@
 using Telegram.Bot.Types;
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using MySql.Data.MySqlClient;
 internal class Program
 {
     private static Dictionary<long, string> userStates = new();
     private static Host? mybot;
+    private static Database? _database;
 
     private static void Main()
     {
@@ -13,7 +15,29 @@ internal class Program
             string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
                ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
             /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-                         ?? "Телеграм_Токен";*/ // Для локального тестирования 
+                         ?? "7476081986:AAFFHHi26MlxbRuCNAA4h5zyE9Nzlz4k_Tc"; // Для локального тестирования */
+
+            string connectionString;
+
+            // Проверяем, работаем ли мы на Railway
+            if (Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT") != null)
+            {
+                // Получаем параметры подключения из переменных окружения Railway
+                string dbHost = Environment.GetEnvironmentVariable("MYSQLHOST") ?? "localhost";
+                string dbPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
+                string dbUser = Environment.GetEnvironmentVariable("MYSQLUSER") ?? "root";
+                string dbPassword = Environment.GetEnvironmentVariable("MYSQLPASSWORD") ?? "";
+                string dbName = Environment.GetEnvironmentVariable("MYSQLDATABASE") ?? "telegrambot";
+
+                connectionString = $"server={dbHost};port={dbPort};database={dbName};user={dbUser};password={dbPassword};";
+            }
+            else
+            {
+                // Локальные настройки для тестирования
+                connectionString = "server=localhost;database=telegrambot;user=root;password=root;";
+            }
+
+            _database = new Database(connectionString);
 
             mybot = new Host(token);
             mybot.Start();
@@ -30,10 +54,23 @@ internal class Program
 
     private static async void OnMessage(ITelegramBotClient client, Update update)
     {
-        if (update.Message?.Text == null || update.Message?.Chat == null) return;
+        if (update.Message?.Text == null || update.Message?.Chat == null || update.Message.From == null)
+            return;
 
+        long userId = update.Message.From.Id;
         long chatId = update.Message.Chat.Id;
         string messageText = update.Message.Text;
+
+        // Автоматическая регистрация пользователя при первом сообщении
+        if (!_database.UserExists(userId))
+        {
+            string firstName = update.Message.From.FirstName ?? "";
+            string lastName = update.Message.From.LastName ?? "";
+            string username = update.Message.From.Username ?? "";
+
+            _database.RegisterUser(userId, firstName, lastName, username);
+            //Console.WriteLine($"Зарегистрирован новый пользователь: {firstName} {lastName} (@{username})");
+        }
 
         // Проверяем текущее состояние пользователя
         if (userStates.TryGetValue(chatId, out string state))
