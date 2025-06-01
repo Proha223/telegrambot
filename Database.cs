@@ -57,7 +57,7 @@ public class Database : IDisposable
         {
             questions.Add(new TestQuestion
             {
-                TestId = reader.GetInt32("test_id"),
+                TestId = reader.GetInt32("id_test"),
                 QuestionText = reader.GetString("question_text"),
                 Option1 = reader.GetString("option1"),
                 Option2 = reader.GetString("option2"),
