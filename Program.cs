@@ -7,6 +7,7 @@ internal class Program
     private static Dictionary<long, string> userStates = new();
     private static Host? mybot;
     private static Database? _database;
+    private static Dictionary<long, (List<TestQuestion>, int)> userTests = new();
 
     private static void Main()
     {
@@ -174,150 +175,77 @@ internal class Program
                     if (messageText == "/exit")
                     {
                         await client.SendMessage(
-                                chatId: chatId,
-                                text: "Вы успешно покинули запуск теста!",
-                                replyMarkup: new ReplyKeyboardRemove());
+                            chatId: chatId,
+                            text: "Вы успешно покинули запуск теста!",
+                            replyMarkup: new ReplyKeyboardRemove());
                         userStates.Remove(chatId);
                     }
                     else if (messageText == "Начать")
                     {
-                        var replyKeyboardTest1 = new ReplyKeyboardMarkup(new[]
+                        var questions = _database.GetTestQuestions();
+                        if (questions.Count == 0)
                         {
-                            new KeyboardButton[] { "1", "2", "3", "4" }
-                        })
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "В базе данных нет вопросов для теста.");
+                            return;
+                        }
+
+                        userTests[chatId] = (questions, 0); // Сохраняем вопросы и текущий индекс (0)
+
+                        await SendQuestion(client, chatId, questions[0], 1, questions.Count);
+                        userStates[chatId] = "TEST_IN_PROGRESS";
+                    }
+                    break;
+
+                case "TEST_IN_PROGRESS":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вы успешно покинули тест!",
+                            replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                        userTests.Remove(chatId);
+                    }
+                    else if (int.TryParse(messageText, out int chosenAnswer) && chosenAnswer >= 1 && chosenAnswer <= 4)
+                    {
+                        var (questions, currentIndex) = userTests[chatId];
+                        var currentQuestion = questions[currentIndex];
+
+                        bool isCorrect = chosenAnswer == currentQuestion.CorrectAnswer;
+                        int userId = _database.GetUserIdByTelegramId(userTelegramId);
+
+                        _database.RecordUserAnswer(userId, currentQuestion.TestId, chosenAnswer, isCorrect);
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: isCorrect ? "Верно ✅" : "Не правильно ❌");
+
+                        // Переход к следующему вопросу или завершение теста
+                        if (currentIndex + 1 < questions.Count)
                         {
-                            ResizeKeyboard = true
-                        };
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Вопрос №1:\nКакой вариант верный?\n1 - Неверный\n2 - Верный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit",
-                            replyMarkup: replyKeyboardTest1);
-                        userStates[chatId] = "TEST_1_QUESTION_1";
-                    }
-                    else
-                    {
-                        await client.SendMessage(
-                        chatId: chatId,
-                        text: "Для запуска теста напишите или нажмите кнопку \"Начать\"!\nВыход - /exit");
-                    }
-                    break;
-
-                case "TEST_1_QUESTION_1":
-                    if (messageText == "/exit")
-                    {
-                        await client.SendMessage(
+                            userTests[chatId] = (questions, currentIndex + 1);
+                            await SendQuestion(client, chatId, questions[currentIndex + 1], currentIndex + 2, questions.Count);
+                        }
+                        else
+                        {
+                            int totalPoints = _database.GetUserTotalPoints(userId);
+                            await client.SendMessage(
                                 chatId: chatId,
-                                text: "Вы успешно покинули тест!",
+                                text: $"Поздравляю! Вы прошли тест. Ваш результат: {totalPoints} из {questions.Count}",
                                 replyMarkup: new ReplyKeyboardRemove());
-                        userStates.Remove(chatId);
-                    }
-                    else if (messageText == "1" || messageText == "3" || messageText == "4")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Не правильно ❌"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Вопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
-                        userStates[chatId] = "TEST_1_QUESTION_2";
-                    }
-                    else if (messageText == "2")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Верно ✅"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Вопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
-                        userStates[chatId] = "TEST_1_QUESTION_2";
+                            userStates.Remove(chatId);
+                            userTests.Remove(chatId);
+                        }
                     }
                     else
                     {
+                        var (questions, currentIndex) = userTests[chatId];
                         await client.SendMessage(
                             chatId: chatId,
-                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №1:\nКакой вариант верный?\n1 - Неверный\n2 - Верный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
-                    }
-                    break;
-
-                case "TEST_1_QUESTION_2":
-                    if (messageText == "/exit")
-                    {
-                        await client.SendMessage(
-                                chatId: chatId,
-                                text: "Вы успешно покинули тест!",
-                                replyMarkup: new ReplyKeyboardRemove());
-                        userStates.Remove(chatId);
-                    }
-                    else if (messageText == "2" || messageText == "3" || messageText == "4")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Не правильно ❌"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Вопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
-                        userStates[chatId] = "TEST_1_QUESTION_3";
-                    }
-                    else if (messageText == "1")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Верно ✅"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Вопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
-                        userStates[chatId] = "TEST_1_QUESTION_3";
-                    }
-                    else
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №2:\nКакой вариант верный?\n1 - Верный\n2 - Неверный\n3 - Неверный\n4 - Неверный\n\nДля выхода из теста - /exit");
-                    }
-                    break;
-
-                case "TEST_1_QUESTION_3":
-                    if (messageText == "/exit")
-                    {
-                        await client.SendMessage(
-                                chatId: chatId,
-                                text: "Вы успешно покинули тест!",
-                                replyMarkup: new ReplyKeyboardRemove());
-                        userStates.Remove(chatId);
-                    }
-                    else if (messageText == "1" || messageText == "2" || messageText == "3")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Не правильно ❌"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Поздравляю! Вы прошли тест. Узнать баллы - /results",
-                            replyMarkup: new ReplyKeyboardRemove()); // Добавить выгрузку баллов из бд
-                        userStates.Remove(chatId); // Сбрасываем состояние
-                    }
-                    else if (messageText == "4")
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Верно ✅"); // Добавить баллы пользователю
-
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Поздравляю! Вы прошли тест. Узнать баллы - /results",
-                            replyMarkup: new ReplyKeyboardRemove()); // Добавить выгрузку баллов из бд
-                        userStates.Remove(chatId); // Сбрасываем состояние
-                    }
-                    else
-                    {
-                        await client.SendMessage(
-                            chatId: chatId,
-                            text: "Выберите вариант ответа на вопрос из предложенного списка!\nВопрос №3:\nКакой вариант верный?\n1 - Неверный\n2 - Неверный\n3 - Неверный\n4 - Верный\n\nДля выхода из теста - /exit");
+                            text: "Выберите вариант ответа от 1 до 4!");
+                        await SendQuestion(client, chatId, questions[currentIndex], currentIndex + 1, questions.Count);
                     }
                     break;
 
@@ -403,9 +331,11 @@ internal class Program
                     break;
 
                 case "/results":
+                    int userIdResult = _database.GetUserIdByTelegramId(userTelegramId);
+                    int totalPointsResult = _database.GetUserTotalPoints(userIdResult);
                     await client.SendMessage(
                         chatId: chatId,
-                        text: "Ваши баллы null/null"); // null - баллы из бд
+                        text: $"Ваши баллы: {totalPointsResult}");
                     break;
 
                 default:
@@ -425,5 +355,36 @@ internal class Program
             new BotCommand { Command = "/exit", Description = "Выход" },
             new BotCommand { Command = "/help", Description = "Помощь" }
         });
+    }
+    private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
+    {
+        var options = new List<string>
+    {
+        $"1 - {question.Option1}",
+        $"2 - {question.Option2}"
+    };
+
+        if (!string.IsNullOrEmpty(question.Option3))
+            options.Add($"3 - {question.Option3}");
+        if (!string.IsNullOrEmpty(question.Option4))
+            options.Add($"4 - {question.Option4}");
+
+        string questionText = $"Вопрос №{questionNumber} (из {totalQuestions}):\n" +
+                             $"{question.QuestionText}\n\n" +
+                             string.Join("\n", options) +
+                             "\n\nДля выхода из теста - /exit";
+
+        var replyKeyboard = new ReplyKeyboardMarkup(
+            Enumerable.Range(1, options.Count)
+                .Select(x => new KeyboardButton(x.ToString()))
+                .Chunk(2))
+        {
+            ResizeKeyboard = true
+        };
+
+        await client.SendMessage(
+            chatId: chatId,
+            text: questionText,
+            replyMarkup: replyKeyboard);
     }
 }
