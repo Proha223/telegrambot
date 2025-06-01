@@ -67,7 +67,7 @@ public class Host
         }
     }
 
-    private Task HandleErrorAsync(ITelegramBotClient client, CancellationToken cancellationToken)
+    private Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
