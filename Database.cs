@@ -50,33 +50,21 @@ public class Database : IDisposable
     {
         var questions = new List<TestQuestion>();
 
-        try
+        using var cmd = new MySqlCommand("SELECT * FROM tests", _connection);
+        using var reader = cmd.ExecuteReader();
+
+        while (reader.Read())
         {
-            using var cmd = new MySqlCommand("SELECT * FROM tests", _connection);
-            using var reader = cmd.ExecuteReader();
-
-            Console.WriteLine($"Получение вопросов из базы... Найдено записей: {reader.HasRows}");
-
-            while (reader.Read())
+            questions.Add(new TestQuestion
             {
-                var question = new TestQuestion
-                {
-                    TestId = reader.GetInt32("test_id"),
-                    QuestionText = reader.GetString("question_text"),
-                    Option1 = reader.GetString("option1"),
-                    Option2 = reader.GetString("option2"),
-                    Option3 = reader.IsDBNull(reader.GetOrdinal("option3")) ? null : reader.GetString("option3"),
-                    Option4 = reader.IsDBNull(reader.GetOrdinal("option4")) ? null : reader.GetString("option4"),
-                    CorrectAnswer = reader.GetInt32("correct_answer")
-                };
-
-                Console.WriteLine($"Добавлен вопрос: {question.QuestionText}");
-                questions.Add(question);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при получении вопросов: {ex.Message}");
+                TestId = reader.GetInt32("test_id"),
+                QuestionText = reader.GetString("question_text"),
+                Option1 = reader.GetString("option1"),
+                Option2 = reader.GetString("option2"),
+                Option3 = reader.IsDBNull(reader.GetOrdinal("option3")) ? null : reader.GetString("option3"),
+                Option4 = reader.IsDBNull(reader.GetOrdinal("option4")) ? null : reader.GetString("option4"),
+                CorrectAnswer = reader.GetInt32("correct_answer")
+            });
         }
 
         return questions;
