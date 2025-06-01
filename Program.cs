@@ -15,7 +15,7 @@ internal class Program
             string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
                ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
             /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-                         ?? ""; // Для локального тестирования */
+                         ?? "7476081986:AAFFHHi26MlxbRuCNAA4h5zyE9Nzlz4k_Tc"; // Для локального тестирования */
 
             string connectionString;
 
@@ -57,18 +57,18 @@ internal class Program
         if (update.Message?.Text == null || update.Message?.Chat == null || update.Message.From == null)
             return;
 
-        long userId = update.Message.From.Id;
+        long userTelegramId = update.Message.From.Id; // Используем Telegram ID как внешний идентификатор
         long chatId = update.Message.Chat.Id;
         string messageText = update.Message.Text;
 
         // Автоматическая регистрация пользователя при первом сообщении
-        if (!_database.UserExists(userId))
+        if (!_database.UserExists(userTelegramId))
         {
             string firstName = update.Message.From.FirstName ?? "";
             string lastName = update.Message.From.LastName ?? "";
             string username = update.Message.From.Username ?? "";
 
-            _database.RegisterUser(userId, firstName, lastName, username);
+            _database.RegisterUser(userTelegramId, firstName, lastName, username);
             //Console.WriteLine($"Зарегистрирован новый пользователь: {firstName} {lastName} (@{username})");
         }
 
