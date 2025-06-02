@@ -143,6 +143,11 @@ internal class Program
 
                 case "ADMIN_VIEW_TABLES":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         var tables = _database.GetTableNames();
                         if (tables.Contains(messageText))
                         {
@@ -184,6 +189,11 @@ internal class Program
 
                 case "ADMIN_EDIT_TABLES":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         var tables = _database.GetTableNames();
                         if (tables.Contains(messageText))
                         {
@@ -216,6 +226,11 @@ internal class Program
                     }
 
                 case "ADMIN_EDIT_OPTIONS":
+                    if (messageText == "/exit")
+                    {
+                        await ExitAdminPanel(client, chatId);
+                        break;
+                    }
                     if (messageText == "Назад")
                     {
                         var tables = _database.GetTableNames();
@@ -301,6 +316,11 @@ internal class Program
 
                 case "ADMIN_ADD_DATA":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminStates.TryGetValue(chatId, out var adminState) ||
                             !adminEditingColumn.TryGetValue(chatId, out string currentColumn))
@@ -367,6 +387,11 @@ internal class Program
 
                 case "ADMIN_CONFIRM_ADD":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminStates.TryGetValue(chatId, out var adminState))
                         {
@@ -434,6 +459,11 @@ internal class Program
 
                 case "ADMIN_EDIT_ID":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingColumn.TryGetValue(chatId, out string idColumn))
                         {
@@ -486,6 +516,11 @@ internal class Program
 
                 case "ADMIN_EDIT_COLUMN":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingId.TryGetValue(chatId, out int id) ||
                             !adminEditingColumn.TryGetValue(chatId, out string idColumn))
@@ -524,6 +559,11 @@ internal class Program
 
                 case "ADMIN_EDIT_VALUE":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingId.TryGetValue(chatId, out int id) ||
                             !adminEditingColumn.TryGetValue(chatId, out string columnName) ||
@@ -579,6 +619,11 @@ internal class Program
 
                 case "ADMIN_CONFIRM_EDIT":
                     {
+                        if (messageText == "/exit")
+                        {
+                            await ExitAdminPanel(client, chatId);
+                            break;
+                        }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingId.TryGetValue(chatId, out int id) ||
                             !adminEditingColumn.TryGetValue(chatId, out string idColumn) ||
@@ -971,6 +1016,21 @@ internal class Program
             new BotCommand { Command = "/help", Description = "Помощь" }
         });
     }
+
+    private static async Task ExitAdminPanel(ITelegramBotClient client, long chatId)
+    {
+        await client.SendMessage(
+            chatId: chatId,
+            text: "Вы вышли из админ-панели!",
+            replyMarkup: new ReplyKeyboardRemove());
+
+        userStates.Remove(chatId);
+        adminStates.Remove(chatId);
+        adminTableSelection.Remove(chatId);
+        adminEditingId.Remove(chatId);
+        adminEditingColumn.Remove(chatId);
+    }
+
     private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
     {
         var options = new List<string>
