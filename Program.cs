@@ -67,7 +67,7 @@ internal class Program
         {
             string firstName = update.Message.From.FirstName ?? "";
             string lastName = update.Message.From.LastName ?? "";
-            string username = update.Message.From.Username ?? "";
+            string username = update.Message.From.Username ?? string.Empty;
 
             _database.RegisterUser(userTelegramId, firstName, lastName, username);
             //Console.WriteLine($"Зарегистрирован новый пользователь: {firstName} {lastName} (@{username})");
