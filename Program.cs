@@ -8,6 +8,11 @@ internal class Program
     private static Host? mybot;
     private static Database? _database;
     private static Dictionary<long, (List<TestQuestion>, int)> userTests = new();
+    // Добавляем новые поля
+    private static Dictionary<long, (string, Dictionary<string, object>)> adminStates = new();
+    private static Dictionary<long, string> adminTableSelection = new();
+    private static Dictionary<long, int> adminEditingId = new();
+    private static Dictionary<long, string> adminEditingColumn = new();
 
     private static void Main()
     {
@@ -78,6 +83,573 @@ internal class Program
         {
             switch (state)
             {
+                // Добавляем новый case в switch (state) для обработки состояний админ-панели:
+                case "ADMIN_PANEL":
+                    if (messageText == "/exit")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Вы вышли из админ-панели!",
+                            replyMarkup: new ReplyKeyboardRemove());
+                        userStates.Remove(chatId);
+                        adminStates.Remove(chatId);
+                        adminTableSelection.Remove(chatId);
+                        adminEditingId.Remove(chatId);
+                        adminEditingColumn.Remove(chatId);
+                        break;
+                    }
+
+                    if (messageText == "Просмотр таблиц")
+                    {
+                        var tables = _database.GetTableNames();
+                        var tableButtons = tables.Select(t => new KeyboardButton(t)).Chunk(2).ToArray();
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите таблицу для просмотра:",
+                            replyMarkup: new ReplyKeyboardMarkup(tableButtons)
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            });
+
+                        userStates[chatId] = "ADMIN_VIEW_TABLES";
+                        break;
+                    }
+                    else if (messageText == "Изменение данных")
+                    {
+                        var tables = _database.GetTableNames();
+                        var tableButtons = tables.Select(t => new KeyboardButton(t)).Chunk(2).ToArray();
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите таблицу для изменения:",
+                            replyMarkup: new ReplyKeyboardMarkup(tableButtons)
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            });
+
+                        userStates[chatId] = "ADMIN_EDIT_TABLES";
+                        break;
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Используйте кнопки для навигации или /exit для выхода");
+                        break;
+                    }
+
+                case "ADMIN_VIEW_TABLES":
+                    {
+                        var tables = _database.GetTableNames();
+                        if (tables.Contains(messageText))
+                        {
+                            string structure = _database.GetTableStructure(messageText);
+                            var data = _database.GetTableData(messageText);
+
+                            var response = new System.Text.StringBuilder();
+                            response.AppendLine(structure);
+                            response.AppendLine("\nДанные:");
+
+                            foreach (var row in data)
+                            {
+                                response.AppendLine(string.Join(", ", row.Select(kv => $"{kv.Key}: {kv.Value}")));
+                            }
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: response.ToString(),
+                                replyMarkup: new ReplyKeyboardMarkup(new[]
+                                {
+                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                    new KeyboardButton[] { "/exit" }
+                                })
+                                {
+                                    ResizeKeyboard = true,
+                                    OneTimeKeyboard = true
+                                });
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                        }
+                        else
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Пожалуйста, выберите таблицу из списка или /exit для выхода");
+                        }
+                        break;
+                    }
+
+                case "ADMIN_EDIT_TABLES":
+                    {
+                        var tables = _database.GetTableNames();
+                        if (tables.Contains(messageText))
+                        {
+                            adminTableSelection[chatId] = messageText;
+
+                            var editOptions = new ReplyKeyboardMarkup(new[]
+                            {
+                new KeyboardButton[] { "Добавить данные", "Редактировать данные" },
+                new KeyboardButton[] { "Назад", "/exit" }
+            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: $"Выбрана таблица: {messageText}. Выберите действие:",
+                                replyMarkup: editOptions);
+
+                            userStates[chatId] = "ADMIN_EDIT_OPTIONS";
+                        }
+                        else
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Пожалуйста, выберите таблицу из списка или /exit для выхода");
+                        }
+                        break;
+                    }
+
+                case "ADMIN_EDIT_OPTIONS":
+                    if (messageText == "Назад")
+                    {
+                        var tables = _database.GetTableNames();
+                        var tableButtons = tables.Select(t => new KeyboardButton(t)).Chunk(2).ToArray();
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите таблицу для изменения:",
+                            replyMarkup: new ReplyKeyboardMarkup(tableButtons)
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            });
+
+                        userStates[chatId] = "ADMIN_EDIT_TABLES";
+                        adminTableSelection.Remove(chatId);
+                        break;
+                    }
+                    else if (messageText == "Добавить данные")
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка выбора таблицы. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var structure = _database.GetTableStructure(tableName);
+                        var columns = structure.Split('\n')
+                            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("Таблица"))
+                            .Select(line => line.Split('-')[0].Trim())
+                            .ToList();
+
+                        adminStates[chatId] = ("ADD_DATA", new Dictionary<string, object>());
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: $"Введите значение для {columns[0]} (для отмены введите /exit):",
+                            replyMarkup: new ReplyKeyboardRemove());
+
+                        userStates[chatId] = "ADMIN_ADD_DATA";
+                        adminEditingColumn[chatId] = columns[0];
+                        break;
+                    }
+                    else if (messageText == "Редактировать данные")
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка выбора таблицы. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        string idColumn = _database.GetPrimaryKeyColumn(tableName);
+                        if (string.IsNullOrEmpty(idColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Не удалось определить первичный ключ таблицы.");
+                            break;
+                        }
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: $"Введите ID записи для редактирования (первичный ключ {idColumn}):",
+                            replyMarkup: new ReplyKeyboardRemove());
+
+                        userStates[chatId] = "ADMIN_EDIT_ID";
+                        adminEditingColumn[chatId] = idColumn;
+                        break;
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Используйте кнопки для навигации или /exit для выхода");
+                        break;
+                    }
+
+                case "ADMIN_ADD_DATA":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminStates.TryGetValue(chatId, out var adminState) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string currentColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var (action, data) = adminState;
+                        var structure = _database.GetTableStructure(tableName);
+                        var columns = structure.Split('\n')
+                            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("Таблица"))
+                            .Select(line => line.Split('-')[0].Trim())
+                            .ToList();
+
+                        int currentIndex = columns.IndexOf(currentColumn);
+
+                        // Сохраняем введенное значение
+                        data[currentColumn] = messageText;
+
+                        // Если это последний столбец - показываем все данные и кнопки подтверждения
+                        if (currentIndex == columns.Count - 1)
+                        {
+                            var response = new System.Text.StringBuilder();
+                            response.AppendLine($"Вы ввели следующие данные для таблицы {tableName}:");
+
+                            foreach (var column in columns)
+                            {
+                                response.AppendLine($"{column} - {data.GetValueOrDefault(column, "NULL")}");
+                            }
+
+                            var confirmKeyboard = new ReplyKeyboardMarkup(new[]
+                            {
+                new KeyboardButton[] { "Отменить", "Добавить" },
+                new KeyboardButton[] { "/exit" }
+            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: response.ToString(),
+                                replyMarkup: confirmKeyboard);
+
+                            userStates[chatId] = "ADMIN_CONFIRM_ADD";
+                        }
+                        else
+                        {
+                            // Переходим к следующему столбцу
+                            string nextColumn = columns[currentIndex + 1];
+                            adminEditingColumn[chatId] = nextColumn;
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: $"Введите значение для {nextColumn} (для отмены введите /exit):");
+                        }
+                        break;
+                    }
+
+                case "ADMIN_CONFIRM_ADD":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminStates.TryGetValue(chatId, out var adminState))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var (action, data) = adminState;
+
+                        if (messageText == "Добавить")
+                        {
+                            bool success = _database.InsertTableRow(tableName, data);
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: success
+                                    ? "Данные успешно добавлены!"
+                                    : "Ошибка при добавлении данных. Проверьте введенные значения.",
+                                replyMarkup: new ReplyKeyboardMarkup(new[]
+                                {
+                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                    new KeyboardButton[] { "/exit" }
+                                })
+                                {
+                                    ResizeKeyboard = true,
+                                    OneTimeKeyboard = true
+                                });
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                            adminStates.Remove(chatId);
+                            adminTableSelection.Remove(chatId);
+                            adminEditingColumn.Remove(chatId);
+                        }
+                        else if (messageText == "Отменить")
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Добавление данных отменено.",
+                                replyMarkup: new ReplyKeyboardMarkup(new[]
+                                {
+                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                    new KeyboardButton[] { "/exit" }
+                                })
+                                {
+                                    ResizeKeyboard = true,
+                                    OneTimeKeyboard = true
+                                });
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                            adminStates.Remove(chatId);
+                            adminTableSelection.Remove(chatId);
+                            adminEditingColumn.Remove(chatId);
+                        }
+                        else
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Используйте кнопки для подтверждения или отмены");
+                        }
+                        break;
+                    }
+
+                case "ADMIN_EDIT_ID":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string idColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        if (!int.TryParse(messageText, out int id))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Пожалуйста, введите числовой ID.");
+                            break;
+                        }
+
+                        var row = _database.GetTableRowById(tableName, idColumn, id);
+                        if (row == null)
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Запись с таким ID не найдена. Попробуйте еще раз.");
+                            break;
+                        }
+
+                        adminEditingId[chatId] = id;
+
+                        var structure = _database.GetTableStructure(tableName);
+                        var columns = structure.Split('\n')
+                            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("Таблица"))
+                            .Select(line => line.Split('-')[0].Trim())
+                            .ToList();
+
+                        var columnButtons = columns.Select(c => new KeyboardButton(c)).Chunk(2).ToArray();
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: $"Выберите столбец для редактирования (текущие значения):\n{string.Join("\n", row.Select(kv => $"{kv.Key}: {kv.Value}"))}",
+                            replyMarkup: new ReplyKeyboardMarkup(columnButtons)
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            });
+
+                        userStates[chatId] = "ADMIN_EDIT_COLUMN";
+                        break;
+                    }
+
+                case "ADMIN_EDIT_COLUMN":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminEditingId.TryGetValue(chatId, out int id) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string idColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var structure = _database.GetTableStructure(tableName);
+                        var columns = structure.Split('\n')
+                            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("Таблица"))
+                            .Select(line => line.Split('-')[0].Trim())
+                            .ToList();
+
+                        if (!columns.Contains(messageText))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Пожалуйста, выберите столбец из списка.");
+                            break;
+                        }
+
+                        adminEditingColumn[chatId] = messageText;
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: $"Введите новое значение для {messageText} (для отмены введите /exit):",
+                            replyMarkup: new ReplyKeyboardRemove());
+
+                        userStates[chatId] = "ADMIN_EDIT_VALUE";
+                        break;
+                    }
+
+                case "ADMIN_EDIT_VALUE":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminEditingId.TryGetValue(chatId, out int id) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string columnName) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string idColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var row = _database.GetTableRowById(tableName, idColumn, id);
+                        if (row == null)
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Запись не найдена. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        row[columnName] = messageText;
+
+                        var response = new System.Text.StringBuilder();
+                        response.AppendLine($"Вы точно хотите изменить таблицу {tableName}?");
+                        response.AppendLine("Новые значения:");
+
+                        foreach (var item in row)
+                        {
+                            response.AppendLine($"{item.Key}: {item.Value}");
+                        }
+
+                        var confirmKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+            new KeyboardButton[] { "Отменить", "Изменить" },
+            new KeyboardButton[] { "/exit" }
+        })
+                        {
+                            ResizeKeyboard = true,
+                            OneTimeKeyboard = true
+                        };
+
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: response.ToString(),
+                            replyMarkup: confirmKeyboard);
+
+                        adminStates[chatId] = ("EDIT_DATA", row.ToDictionary(kv => kv.Key, kv => kv.Value));
+                        userStates[chatId] = "ADMIN_CONFIRM_EDIT";
+                        break;
+                    }
+
+                case "ADMIN_CONFIRM_EDIT":
+                    {
+                        if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
+                            !adminEditingId.TryGetValue(chatId, out int id) ||
+                            !adminEditingColumn.TryGetValue(chatId, out string idColumn) ||
+                            !adminStates.TryGetValue(chatId, out var adminState))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        var (action, data) = adminState;
+
+                        if (messageText == "Изменить")
+                        {
+                            // Удаляем первичный ключ из данных для обновления
+                            data.Remove(idColumn);
+
+                            bool success = _database.UpdateTableRow(tableName, idColumn, id, data);
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: success
+                                    ? "Данные успешно изменены!"
+                                    : "Ошибка при изменении данных. Проверьте введенные значения.",
+                                replyMarkup: new ReplyKeyboardMarkup(new[]
+                                {
+                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                    new KeyboardButton[] { "/exit" }
+                                })
+                                {
+                                    ResizeKeyboard = true,
+                                    OneTimeKeyboard = true
+                                });
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                            adminStates.Remove(chatId);
+                            adminTableSelection.Remove(chatId);
+                            adminEditingId.Remove(chatId);
+                            adminEditingColumn.Remove(chatId);
+                        }
+                        else if (messageText == "Отменить")
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Изменение данных отменено.",
+                                replyMarkup: new ReplyKeyboardMarkup(new[]
+                                {
+                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                    new KeyboardButton[] { "/exit" }
+                                })
+                                {
+                                    ResizeKeyboard = true,
+                                    OneTimeKeyboard = true
+                                });
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                            adminStates.Remove(chatId);
+                            adminTableSelection.Remove(chatId);
+                            adminEditingId.Remove(chatId);
+                            adminEditingColumn.Remove(chatId);
+                        }
+                        else
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Используйте кнопки для подтверждения или отмены");
+                        }
+                        break;
+                    }
                 case "WAITING_TEST_TYPE":
                     switch (messageText)
                     {
@@ -281,6 +853,34 @@ internal class Program
             // Если состояния нет, обрабатываем основные команды
             switch (messageText)
             {
+                // 
+                case "/admin":
+                    if (_database.GetUserRole(userTelegramId) != "admin")
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "У вас нет прав доступа к админ-панели!");
+                        break;
+                    }
+
+                    var adminKeyboard = new ReplyKeyboardMarkup(new[]
+                    {
+                        new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                        new KeyboardButton[] { "/exit" }
+                    })
+                    {
+                        ResizeKeyboard = true,
+                        OneTimeKeyboard = true
+                    };
+
+                    await client.SendMessage(
+                        chatId: chatId,
+                        text: "Вы вошли в админ-панель. Выберите действие:",
+                        replyMarkup: adminKeyboard);
+
+                    userStates[chatId] = "ADMIN_PANEL";
+                    break;
+
                 case "/start":
                     await client.SendMessage(
                         chatId: chatId,
@@ -370,6 +970,14 @@ internal class Program
             new BotCommand { Command = "/exit", Description = "Выход" },
             new BotCommand { Command = "/help", Description = "Помощь" }
         });
+
+        if (_database.GetUserRole(userTelegramId) == "admin")
+        {
+            await client.SetMyCommands(new[]
+            {
+                new BotCommand { Command = "/admin", Description = "Админ-панель" } 
+            });
+        }
     }
     private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
     {
