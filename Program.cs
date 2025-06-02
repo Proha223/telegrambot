@@ -961,31 +961,15 @@ internal class Program
             }
         }
 
-        if (_database.GetUserRole(userTelegramId) == "user")
+        await client.SetMyCommands(new[]
         {
-            await client.SetMyCommands(new[]
-            {
-                new BotCommand { Command = "/start", Description = "Запуск бота" },
-                new BotCommand { Command = "/theory", Description = "Изучение теории" },
-                new BotCommand { Command = "/test", Description = "Создание нового теста" },
-                new BotCommand { Command = "/results", Description = "Результаты тестов" },
-                new BotCommand { Command = "/exit", Description = "Выход" },
-                new BotCommand { Command = "/help", Description = "Помощь" }
-            });
-        }
-        else if (_database.GetUserRole(userTelegramId) == "admin")
-        {
-            await client.SetMyCommands(new[]
-            {
-                new BotCommand { Command = "/admin", Description = "Админ-панель" },
-                new BotCommand { Command = "/start", Description = "Запуск бота" },
-                new BotCommand { Command = "/theory", Description = "Изучение теории" },
-                new BotCommand { Command = "/test", Description = "Создание нового теста" },
-                new BotCommand { Command = "/results", Description = "Результаты тестов" },
-                new BotCommand { Command = "/exit", Description = "Выход" },
-                new BotCommand { Command = "/help", Description = "Помощь" }
-            });
-        }
+            new BotCommand { Command = "/start", Description = "Запуск бота" },
+            new BotCommand { Command = "/theory", Description = "Изучение теории" },
+            new BotCommand { Command = "/test", Description = "Создание нового теста" },
+            new BotCommand { Command = "/results", Description = "Результаты тестов" },
+            new BotCommand { Command = "/exit", Description = "Выход" },
+            new BotCommand { Command = "/help", Description = "Помощь" }
+        });
     }
     private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
     {
