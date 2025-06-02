@@ -67,8 +67,11 @@ public class Host
         }
     }
 
-    private Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
+    private async Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        await Task.Run(() => 
+        {
+            Console.WriteLine($"Ошибка в работе бота: {exception}");
+        }, cancellationToken);
     }
 }
