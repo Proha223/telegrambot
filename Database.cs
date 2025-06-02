@@ -79,19 +79,64 @@ public class Database : IDisposable
 
     public void RecordUserAnswer(int userId, int testId, int chosenAnswer, bool isCorrect)
     {
+        // Сначала проверяем, есть ли уже ответ на этот вопрос
+        using var checkCmd = new MySqlCommand(
+            "SELECT id_answer, is_correct FROM userAnswers WHERE user_id = @userId AND test_id = @testId",
+            _connection);
+        checkCmd.Parameters.AddWithValue("@userId", userId);
+        checkCmd.Parameters.AddWithValue("@testId", testId);
+
+        using var reader = checkCmd.ExecuteReader();
+        bool exists = reader.Read();
+        int? previousCorrect = exists ? (reader.GetBoolean("is_correct") ? 1 : 0) : null;
+        int answerId = exists ? reader.GetInt32("id_answer") : 0;
+        reader.Close();
+
+        if (exists)
+        {
+            // Обновляем существующий ответ
+            using var updateCmd = new MySqlCommand(
+                "UPDATE userAnswers SET chosen_answer = @chosenAnswer, is_correct = @isCorrect " +
+                "WHERE id_answer = @answerId", _connection);
+            updateCmd.Parameters.AddWithValue("@chosenAnswer", chosenAnswer);
+            updateCmd.Parameters.AddWithValue("@isCorrect", isCorrect);
+            updateCmd.Parameters.AddWithValue("@answerId", answerId);
+            updateCmd.ExecuteNonQuery();
+
+            // Корректируем баллы с учетом предыдущего результата
+            int pointsDiff = (isCorrect ? 1 : 0) - (previousCorrect ?? 0);
+            if (pointsDiff != 0)
+            {
+                UpdateUserScore(userId, pointsDiff);
+            }
+        }
+        else
+        {
+            // Добавляем новый ответ
+            using var insertCmd = new MySqlCommand(
+                "INSERT INTO userAnswers (user_id, test_id, chosen_answer, is_correct) " +
+                "VALUES (@userId, @testId, @chosenAnswer, @isCorrect)", _connection);
+            insertCmd.Parameters.AddWithValue("@userId", userId);
+            insertCmd.Parameters.AddWithValue("@testId", testId);
+            insertCmd.Parameters.AddWithValue("@chosenAnswer", chosenAnswer);
+            insertCmd.Parameters.AddWithValue("@isCorrect", isCorrect);
+            insertCmd.ExecuteNonQuery();
+
+            // Добавляем баллы за правильный ответ
+            if (isCorrect)
+            {
+                UpdateUserScore(userId, 1);
+            }
+        }
+    }
+
+    public int GetUserTotalCorrectAnswers(int userId)
+    {
         using var cmd = new MySqlCommand(
-            "INSERT INTO userAnswers (user_id, test_id, chosen_answer, is_correct) " +
-            "VALUES (@userId, @testId, @chosenAnswer, @isCorrect)", _connection);
-
+            "SELECT COUNT(DISTINCT test_id) FROM userAnswers WHERE user_id = @userId AND is_correct = TRUE",
+            _connection);
         cmd.Parameters.AddWithValue("@userId", userId);
-        cmd.Parameters.AddWithValue("@testId", testId);
-        cmd.Parameters.AddWithValue("@chosenAnswer", chosenAnswer);
-        cmd.Parameters.AddWithValue("@isCorrect", isCorrect);
-
-        cmd.ExecuteNonQuery();
-
-        // Обновляем общий счет
-        UpdateUserScore(userId, isCorrect ? 1 : 0);
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     private void UpdateUserScore(int userId, int pointsToAdd)
