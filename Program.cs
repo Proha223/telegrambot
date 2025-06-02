@@ -230,10 +230,10 @@ internal class Program
                         }
                         else
                         {
-                            int totalPoints = _database.GetUserTotalPoints(userId);
+                            int totalCorrect = _database.GetUserTotalCorrectAnswers(userId);
                             await client.SendMessage(
                                 chatId: chatId,
-                                text: $"Поздравляю! Вы прошли тест. Ваш результат: {totalPoints} из {questions.Count}",
+                                text: $"Поздравляю! Вы прошли тест. Ваш результат: {totalCorrect} из {questions.Count}",
                                 replyMarkup: new ReplyKeyboardRemove());
                             userStates.Remove(chatId);
                             userTests.Remove(chatId);
@@ -332,17 +332,14 @@ internal class Program
 
                 case "/results":
                     int userIdResult = _database.GetUserIdByTelegramId(userTelegramId);
-                    int totalPointsResult = _database.GetUserTotalPoints(userIdResult);
-
-                    // Получаем общее количество вопросов в базе
+                    int totalCorrect = _database.GetUserTotalCorrectAnswers(userIdResult);
                     int totalQuestions = _database.GetTotalQuestionsCount();
 
-                    // Рассчитываем процент прохождения
-                    double percentage = totalQuestions > 0 ? Math.Round((double)totalPointsResult / totalQuestions * 100, 1) : 0;
+                    double percentage = totalQuestions > 0 ? Math.Round((double)totalCorrect / totalQuestions * 100, 1) : 0;
 
                     await client.SendMessage(
                         chatId: chatId,
-                        text: $"Ваши баллы: {totalPointsResult}/{totalQuestions}\n" +
+                        text: $"Ваши баллы: {totalCorrect}/{totalQuestions}\n" +
                               $"Процент прохождения: {percentage}%");
                     break;
 
