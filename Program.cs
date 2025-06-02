@@ -158,10 +158,7 @@ internal class Program
 
                         await client.SendMessage(
                             chatId: chatId,
-                            text: $"📚 {selectedTopic.TopicName}\n\n{description}",
-                            replyMarkup: new ReplyKeyboardRemove());
-
-                        userStates.Remove(chatId);
+                            text: $"📚 {selectedTopic.TopicName}\n\n{description}");
                     }
                     else
                     {
