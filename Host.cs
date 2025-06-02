@@ -67,6 +67,6 @@ public class Host
 
     private async Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
     {
-        await Task.Run(() => Console.WriteLine(""), cancellationToken); // $"Ошибка в работе бота: {exception}"
+        await Task.Run(() => cancellationToken); // Console.WriteLine($"Ошибка в работе бота: {exception}"), 
     }
 }
