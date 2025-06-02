@@ -136,7 +136,8 @@ public class Database : IDisposable
             "SELECT COUNT(DISTINCT test_id) FROM userAnswers WHERE user_id = @userId AND is_correct = TRUE",
             _connection);
         cmd.Parameters.AddWithValue("@userId", userId);
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var result = cmd.ExecuteScalar();
+        return result == null ? 0 : Convert.ToInt32(result);
     }
 
     private void UpdateUserScore(int userId, int pointsToAdd)
@@ -181,10 +182,10 @@ public class Database : IDisposable
 public class TestQuestion
 {
     public int TestId { get; set; }
-    public string QuestionText { get; set; }
-    public string Option1 { get; set; }
-    public string Option2 { get; set; }
-    public string Option3 { get; set; }
-    public string Option4 { get; set; }
+    public string QuestionText { get; set; } = string.Empty;
+    public string Option1 { get; set; } = string.Empty;
+    public string Option2 { get; set; } = string.Empty;
+    public string? Option3 { get; set; }
+    public string? Option4 { get; set; }
     public int CorrectAnswer { get; set; }
 }
