@@ -27,7 +27,7 @@ public class Database : IDisposable
         return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
     }
 
-    public void RegisterUser(long userTelegramId, string firstName, string lastName, string username)
+    public void RegisterUser(long userTelegramId, string firstName, string lastName, string? username)
     {
         using var cmd = new MySqlCommand(
             "INSERT INTO users (first_name, last_name, username, role, register_date, userTelegramId) " +
@@ -36,7 +36,7 @@ public class Database : IDisposable
         cmd.Parameters.AddWithValue("@userTelegramId", userTelegramId);
         cmd.Parameters.AddWithValue("@firstName", firstName);
         cmd.Parameters.AddWithValue("@lastName", lastName);
-        cmd.Parameters.AddWithValue("@username", username);
+        cmd.Parameters.AddWithValue("@username", username ?? (object)DBNull.Value);
 
         cmd.ExecuteNonQuery();
     }
@@ -44,6 +44,7 @@ public class Database : IDisposable
     public void Dispose()
     {
         _connection?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     public List<TestQuestion> GetTestQuestions()
@@ -74,12 +75,12 @@ public class Database : IDisposable
     {
         using var cmd = new MySqlCommand("SELECT id FROM users WHERE userTelegramId = @telegramId", _connection);
         cmd.Parameters.AddWithValue("@telegramId", telegramId);
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var result = cmd.ExecuteScalar();
+        return result is null ? 0 : Convert.ToInt32(result);
     }
 
     public void RecordUserAnswer(int userId, int testId, int chosenAnswer, bool isCorrect)
     {
-        // Сначала проверяем, есть ли уже ответ на этот вопрос
         using var checkCmd = new MySqlCommand(
             "SELECT id_answer, is_correct FROM userAnswers WHERE user_id = @userId AND test_id = @testId",
             _connection);
@@ -94,7 +95,6 @@ public class Database : IDisposable
 
         if (exists)
         {
-            // Обновляем существующий ответ
             using var updateCmd = new MySqlCommand(
                 "UPDATE userAnswers SET chosen_answer = @chosenAnswer, is_correct = @isCorrect " +
                 "WHERE id_answer = @answerId", _connection);
@@ -103,7 +103,6 @@ public class Database : IDisposable
             updateCmd.Parameters.AddWithValue("@answerId", answerId);
             updateCmd.ExecuteNonQuery();
 
-            // Корректируем баллы с учетом предыдущего результата
             int pointsDiff = (isCorrect ? 1 : 0) - (previousCorrect ?? 0);
             if (pointsDiff != 0)
             {
@@ -112,7 +111,6 @@ public class Database : IDisposable
         }
         else
         {
-            // Добавляем новый ответ
             using var insertCmd = new MySqlCommand(
                 "INSERT INTO userAnswers (user_id, test_id, chosen_answer, is_correct) " +
                 "VALUES (@userId, @testId, @chosenAnswer, @isCorrect)", _connection);
@@ -122,7 +120,6 @@ public class Database : IDisposable
             insertCmd.Parameters.AddWithValue("@isCorrect", isCorrect);
             insertCmd.ExecuteNonQuery();
 
-            // Добавляем баллы за правильный ответ
             if (isCorrect)
             {
                 UpdateUserScore(userId, 1);
@@ -130,19 +127,8 @@ public class Database : IDisposable
         }
     }
 
-    public int GetUserTotalCorrectAnswers(int userId)
-    {
-        using var cmd = new MySqlCommand(
-            "SELECT COUNT(DISTINCT test_id) FROM userAnswers WHERE user_id = @userId AND is_correct = TRUE",
-            _connection);
-        cmd.Parameters.AddWithValue("@userId", userId);
-        var result = cmd.ExecuteScalar();
-        return result == null ? 0 : Convert.ToInt32(result);
-    }
-
     private void UpdateUserScore(int userId, int pointsToAdd)
     {
-        // Проверяем, есть ли запись о баллах у пользователя
         using var checkCmd = new MySqlCommand("SELECT COUNT(*) FROM userScores WHERE user_id = @userId", _connection);
         checkCmd.Parameters.AddWithValue("@userId", userId);
         bool exists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
@@ -170,12 +156,24 @@ public class Database : IDisposable
         using var cmd = new MySqlCommand("SELECT total_points FROM userScores WHERE user_id = @userId", _connection);
         cmd.Parameters.AddWithValue("@userId", userId);
         var result = cmd.ExecuteScalar();
-        return result == null ? 0 : Convert.ToInt32(result);
+        return result is null ? 0 : Convert.ToInt32(result);
     }
+
+    public int GetUserTotalCorrectAnswers(int userId)
+    {
+        using var cmd = new MySqlCommand(
+            "SELECT COUNT(DISTINCT test_id) FROM userAnswers WHERE user_id = @userId AND is_correct = TRUE",
+            _connection);
+        cmd.Parameters.AddWithValue("@userId", userId);
+        var result = cmd.ExecuteScalar();
+        return result is null ? 0 : Convert.ToInt32(result);
+    }
+
     public int GetTotalQuestionsCount()
     {
         using var cmd = new MySqlCommand("SELECT COUNT(*) FROM tests", _connection);
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var result = cmd.ExecuteScalar();
+        return result is null ? 0 : Convert.ToInt32(result);
     }
 }
 
