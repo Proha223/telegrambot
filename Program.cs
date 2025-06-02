@@ -140,34 +140,34 @@ internal class Program
                     if (messageText == "/exit")
                     {
                         await client.SendMessage(
-                                chatId: chatId,
-                                text: "Вы успешно покинули выбор тем для изучения!",
-                                replyMarkup: new ReplyKeyboardRemove());
+                            chatId: chatId,
+                            text: "Вы успешно покинули выбор тем для изучения!",
+                            replyMarkup: new ReplyKeyboardRemove());
                         userStates.Remove(chatId);
                         break;
                     }
-                    switch (messageText)
+
+                    // Получаем список всех тем
+                    var allTopics = _database.GetTheoryTopics();
+                    var selectedTopic = allTopics.FirstOrDefault(t => t.TopicName == messageText);
+
+                    if (selectedTopic != default)
                     {
-                        case "Теория1": // Заменить по названию темы
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "1"); // Текст теории по теме
-                            userStates.Remove(chatId);
-                            break;
+                        // Получаем описание выбранной темы
+                        string description = _database.GetTheoryDescription(selectedTopic.Id);
 
-                        case "Теория2": // Заменить по названию темы
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: $"📚 {selectedTopic.TopicName}\n\n{description}",
+                            replyMarkup: new ReplyKeyboardRemove());
 
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "2"); // Текст теории по теме
-                            userStates.Remove(chatId);
-                            break;
-
-                        default:
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "Для выбора темы используйте кнопки или текст с кнопок!\nВыход из выбора тем - /exit");
-                            break;
+                        userStates.Remove(chatId);
+                    }
+                    else
+                    {
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "Пожалуйста, выберите тему из предложенных вариантов!\nВыход из выбора тем - /exit");
                     }
                     break;
 
@@ -293,17 +293,30 @@ internal class Program
                     break;
 
                 case "/theory":
-                    var replyKeyboardTheory = new ReplyKeyboardMarkup(new[]
+                    var topics = _database.GetTheoryTopics();
+                    if (topics.Count == 0)
                     {
-                        new KeyboardButton[] { "Теория1", "Теория2" }
-                    })
+                        await client.SendMessage(
+                            chatId: chatId,
+                            text: "В базе данных пока нет доступных тем для изучения");
+                        break;
+                    }
+
+                    // Создаем кнопки для каждой темы
+                    var topicButtons = topics
+                        .Select(t => new KeyboardButton(t.TopicName))
+                        .Chunk(2)
+                        .ToArray();
+
+                    var replyKeyboardTheory = new ReplyKeyboardMarkup(topicButtons)
                     {
                         ResizeKeyboard = true,
                         OneTimeKeyboard = true
                     };
+
                     await client.SendMessage(
                         chatId: chatId,
-                        text: "Выберите тему для изучения",
+                        text: "Выберите тему для изучения:\n(Для выхода - /exit)",
                         replyMarkup: replyKeyboardTheory);
                     userStates[chatId] = "WAITING_THEORY_TYPE";
                     break;
