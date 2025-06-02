@@ -175,6 +175,30 @@ public class Database : IDisposable
         var result = cmd.ExecuteScalar();
         return result is null ? 0 : Convert.ToInt32(result);
     }
+
+    // В класс Database добавляем новые методы:
+    public List<(int Id, string TopicName)> GetTheoryTopics()
+    {
+        var topics = new List<(int, string)>();
+
+        using var cmd = new MySqlCommand("SELECT id_theory, topic_name FROM theory_materials", _connection);
+        using var reader = cmd.ExecuteReader();
+
+        while (reader.Read())
+        {
+            topics.Add((reader.GetInt32("id_theory"), reader.GetString("topic_name")));
+        }
+
+        return topics;
+    }
+
+    public string GetTheoryDescription(int theoryId)
+    {
+        using var cmd = new MySqlCommand("SELECT description FROM theory_materials WHERE id_theory = @theoryId", _connection);
+        cmd.Parameters.AddWithValue("@theoryId", theoryId);
+        var result = cmd.ExecuteScalar();
+        return result?.ToString() ?? "Теория по данной теме не найдена";
+    }
 }
 
 public class TestQuestion
