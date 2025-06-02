@@ -199,6 +199,138 @@ public class Database : IDisposable
         var result = cmd.ExecuteScalar();
         return result?.ToString() ?? "Теория по данной теме не найдена";
     }
+
+    public string GetUserRole(long userTelegramId)
+    {
+        using var cmd = new MySqlCommand("SELECT role FROM users WHERE userTelegramId = @userTelegramId", _connection);
+        cmd.Parameters.AddWithValue("@userTelegramId", userTelegramId);
+        var result = cmd.ExecuteScalar();
+        return result?.ToString() ?? "user";
+    }
+
+    public List<string> GetTableNames()
+    {
+        var tables = new List<string>();
+        using var cmd = new MySqlCommand("SHOW TABLES", _connection);
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            tables.Add(reader.GetString(0));
+        }
+        return tables;
+    }
+
+    public string GetTableStructure(string tableName)
+    {
+        using var cmd = new MySqlCommand($"DESCRIBE {tableName}", _connection);
+        using var reader = cmd.ExecuteReader();
+
+        var structure = new System.Text.StringBuilder();
+        structure.AppendLine($"Таблица [{tableName}]:");
+
+        while (reader.Read())
+        {
+            string field = reader.GetString("Field");
+            string type = reader.GetString("Type");
+            structure.AppendLine($"{field} - {type}");
+        }
+
+        return structure.ToString();
+    }
+
+    public List<Dictionary<string, object>> GetTableData(string tableName)
+    {
+        var data = new List<Dictionary<string, object>>();
+        using var cmd = new MySqlCommand($"SELECT * FROM {tableName}", _connection);
+        using var reader = cmd.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var row = new Dictionary<string, object>();
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                row.Add(reader.GetName(i), reader.GetValue(i));
+            }
+            data.Add(row);
+        }
+
+        return data;
+    }
+
+    public Dictionary<string, object> GetTableRowById(string tableName, string idColumn, int id)
+    {
+        using var cmd = new MySqlCommand($"SELECT * FROM {tableName} WHERE {idColumn} = @id", _connection);
+        cmd.Parameters.AddWithValue("@id", id);
+        using var reader = cmd.ExecuteReader();
+
+        if (reader.Read())
+        {
+            var row = new Dictionary<string, object>();
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                row.Add(reader.GetName(i), reader.GetValue(i));
+            }
+            return row;
+        }
+
+        return null;
+    }
+
+    public bool InsertTableRow(string tableName, Dictionary<string, object> data)
+    {
+        try
+        {
+            var columns = string.Join(", ", data.Keys);
+            var parameters = string.Join(", ", data.Keys.Select(k => $"@{k}"));
+
+            using var cmd = new MySqlCommand($"INSERT INTO {tableName} ({columns}) VALUES ({parameters})", _connection);
+
+            foreach (var item in data)
+            {
+                cmd.Parameters.AddWithValue($"@{item.Key}", item.Value ?? DBNull.Value);
+            }
+
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool UpdateTableRow(string tableName, string idColumn, int id, Dictionary<string, object> data)
+    {
+        try
+        {
+            var setClause = string.Join(", ", data.Keys.Select(k => $"{k} = @{k}"));
+
+            using var cmd = new MySqlCommand($"UPDATE {tableName} SET {setClause} WHERE {idColumn} = @id", _connection);
+
+            foreach (var item in data)
+            {
+                cmd.Parameters.AddWithValue($"@{item.Key}", item.Value ?? DBNull.Value);
+            }
+            cmd.Parameters.AddWithValue("@id", id);
+
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public string GetPrimaryKeyColumn(string tableName)
+    {
+        using var cmd = new MySqlCommand(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName AND COLUMN_KEY = 'PRI'",
+            _connection);
+
+        cmd.Parameters.AddWithValue("@tableName", tableName);
+        var result = cmd.ExecuteScalar();
+        return result?.ToString();
+    }
 }
 
 public class TestQuestion
