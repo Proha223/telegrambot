@@ -19,10 +19,9 @@ public class Host
     {
         try
         {
-            // В версии 22.5.1 просто запускаем получение сообщений без отключения вебхука
             var receiverOptions = new ReceiverOptions
             {
-                AllowedUpdates = Array.Empty<UpdateType>() // Получаем все типы обновлений
+                AllowedUpdates = Array.Empty<UpdateType>()
             };
 
             _bot.StartReceiving(
@@ -50,14 +49,13 @@ public class Host
     {
         try
         {
-            var user = update.Message?.From;
-            if (user == null) return;
+            if (update.Message?.From is null) return;
 
-            string fullName = $"{user.FirstName}{(string.IsNullOrEmpty(user.LastName) ? "" : " " + user.LastName)}";
-            DateTime messageTime = update.Message!.Date.ToLocalTime();
+            string fullName = $"{update.Message.From.FirstName}{(string.IsNullOrEmpty(update.Message.From.LastName) ? "" : " " + update.Message.From.LastName)}";
+            DateTime messageTime = update.Message.Date.ToLocalTime();
             string formattedTime = messageTime.ToString("HH:mm:ss dd.MM.yyyy");
 
-            Console.WriteLine($"[{formattedTime}] Сообщение от {fullName} (@{user.Username}): {update.Message.Text ?? "[не текст]"}");
+            Console.WriteLine($"[{formattedTime}] Сообщение от {fullName} (@{update.Message.From.Username}): {update.Message.Text ?? "[не текст]"}");
 
             OnMessage?.Invoke(client, update);
         }
@@ -69,9 +67,6 @@ public class Host
 
     private async Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
     {
-        await Task.Run(() => 
-        {
-            Console.WriteLine($"Ошибка в работе бота: {exception}");
-        }, cancellationToken);
+        await Task.Run(() => Console.WriteLine($"Ошибка в работе бота: {exception}"), cancellationToken);
     }
 }
