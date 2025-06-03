@@ -102,7 +102,10 @@ internal class Program
                     if (messageText == "Просмотр таблиц")
                     {
                         var tables = _database.GetTableNames();
-                        var tableButtons = tables.Select(t => new KeyboardButton(t)).Chunk(2).ToArray();
+                        var tableButtons = tables.Select(t => new KeyboardButton(t))
+                            .Concat(new[] { new KeyboardButton("Назад") })
+                            .Chunk(2)
+                            .ToArray();
 
                         await client.SendMessage(
                             chatId: chatId,
@@ -123,7 +126,7 @@ internal class Program
                             .Concat(new[] { new KeyboardButton("Назад") })
                             .Chunk(2)
                             .ToArray();
-                        
+
                         await client.SendMessage(
                             chatId: chatId,
                             text: "Выберите таблицу для изменения:",
@@ -151,6 +154,27 @@ internal class Program
                             await ExitAdminPanel(client, chatId);
                             break;
                         }
+                        else if (messageText == "Назад") // Обработка кнопки "Назад"
+                        {
+                            var adminKeyboard = new ReplyKeyboardMarkup(new[]
+                            {
+                                new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                new KeyboardButton[] { "/exit" }
+                            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Возврат в главное меню админ-панели:",
+                                replyMarkup: adminKeyboard);
+
+                            userStates[chatId] = "ADMIN_PANEL";
+                            break;
+                        }
+
                         var tables = _database.GetTableNames();
                         if (tables.Contains(messageText))
                         {
@@ -171,8 +195,8 @@ internal class Program
                                 text: response.ToString(),
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
-                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                    new KeyboardButton[] { "/exit" }
+                                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                    new KeyboardButton[] { "/exit" }
                                 })
                                 {
                                     ResizeKeyboard = true,
@@ -208,12 +232,12 @@ internal class Program
                                 ResizeKeyboard = true,
                                 OneTimeKeyboard = true
                             };
-                        
+
                             await client.SendMessage(
                                 chatId: chatId,
                                 text: "Возврат в главное меню админ-панели:",
                                 replyMarkup: adminKeyboard);
-                        
+
                             userStates[chatId] = "ADMIN_PANEL";
                             break;
                         }
@@ -261,7 +285,7 @@ internal class Program
                             .Concat(new[] { new KeyboardButton("Назад") })
                             .Chunk(2)
                             .ToArray();
-                    
+
                         await client.SendMessage(
                             chatId: chatId,
                             text: "Выберите таблицу для изменения:",
@@ -270,7 +294,7 @@ internal class Program
                                 ResizeKeyboard = true,
                                 OneTimeKeyboard = true
                             });
-                    
+
                         userStates[chatId] = "ADMIN_EDIT_TABLES";
                         adminTableSelection.Remove(chatId);
                         break;
@@ -1040,12 +1064,12 @@ internal class Program
             new BotCommand { Command = "/results", Description = "Результаты тестов" },
             new BotCommand { Command = "/exit", Description = "Выход" },
             new BotCommand { Command = "/help", Description = "Помощь" }
-        }, 
+        },
         scope: new BotCommandScopeDefault());
 
         if (_database.GetUserRole(update.Message.From.Id) == "admin")
         {
-            await client.SetMyCommands(new[] 
+            await client.SetMyCommands(new[]
             {
                 new BotCommand { Command = "/admin", Description = "Админ-панель" },
                 new BotCommand { Command = "/start", Description = "Запуск бота" },
@@ -1054,7 +1078,7 @@ internal class Program
                 new BotCommand { Command = "/results", Description = "Результаты тестов" },
                 new BotCommand { Command = "/exit", Description = "Выход" },
                 new BotCommand { Command = "/help", Description = "Помощь" }
-            }, 
+            },
             scope: new BotCommandScopeChat()
             {
                 ChatId = new ChatId(update.Message.Chat.Id)
