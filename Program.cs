@@ -272,7 +272,7 @@ internal class Program
                             });
                     
                         userStates[chatId] = "ADMIN_EDIT_TABLES";
-                        //adminTableSelection.Remove(chatId);
+                        adminTableSelection.Remove(chatId);
                         break;
                     }
                     else if (messageText == "Добавить данные")
