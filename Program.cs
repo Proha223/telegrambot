@@ -637,6 +637,7 @@ internal class Program
                             break;
                         }
 
+                        // Сохраняем новое значение для выбранного столбца
                         row[columnName] = messageText;
 
                         var response = new System.Text.StringBuilder();
@@ -650,9 +651,9 @@ internal class Program
 
                         var confirmKeyboard = new ReplyKeyboardMarkup(new[]
                         {
-            new KeyboardButton[] { "Отменить", "Изменить" },
-            new KeyboardButton[] { "/exit" }
-        })
+                            new KeyboardButton[] { "Отменить", "Изменить" },
+                            new KeyboardButton[] { "/exit" }
+                        })
                         {
                             ResizeKeyboard = true,
                             OneTimeKeyboard = true
