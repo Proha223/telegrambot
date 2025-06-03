@@ -686,9 +686,9 @@ internal class Program
                             await ExitAdminPanel(client, chatId);
                             break;
                         }
+
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingId.TryGetValue(chatId, out int id) ||
-                            !adminEditingColumn.TryGetValue(chatId, out string idColumn) ||
                             !adminStates.TryGetValue(chatId, out var adminState))
                         {
                             await client.SendMessage(
@@ -702,25 +702,52 @@ internal class Program
 
                         if (messageText == "Изменить")
                         {
-                            // Удаляем первичный ключ из данных для обновления
-                            data.Remove(idColumn);
+                            // Получаем имя первичного ключа
+                            string idColumn = _database.GetPrimaryKeyColumn(tableName);
+                            if (string.IsNullOrEmpty(idColumn))
+                            {
+                                await client.SendMessage(
+                                    chatId: chatId,
+                                    text: "Не удалось определить первичный ключ таблицы.");
+                                break;
+                            }
+
+                            // Логируем данные перед обновлением (для отладки)
+                            Console.WriteLine($"Updating table: {tableName}");
+                            Console.WriteLine($"Where {idColumn} = {id}");
+                            Console.WriteLine("Data to update:");
+                            foreach (var item in data)
+                            {
+                                Console.WriteLine($"{item.Key}: {item.Value} ({item.Value?.GetType()})");
+                            }
 
                             bool success = _database.UpdateTableRow(tableName, idColumn, id, data);
 
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: success
-                                    ? "Данные успешно изменены!"
-                                    : "Ошибка при изменении данных. Проверьте введенные значения.",
-                                replyMarkup: new ReplyKeyboardMarkup(new[]
-                                {
+                            if (success)
+                            {
+                                await client.SendMessage(
+                                    chatId: chatId,
+                                    text: "Данные успешно изменены!",
+                                    replyMarkup: new ReplyKeyboardMarkup(new[]
+                                    {
                     new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
                     new KeyboardButton[] { "/exit" }
-                                })
-                                {
-                                    ResizeKeyboard = true,
-                                    OneTimeKeyboard = true
-                                });
+                                    })
+                                    {
+                                        ResizeKeyboard = true,
+                                        OneTimeKeyboard = true
+                                    });
+                            }
+                            else
+                            {
+                                // Более информативное сообщение об ошибке
+                                await client.SendMessage(
+                                    chatId: chatId,
+                                    text: "Ошибка при изменении данных. Проверьте:\n" +
+                                         "1. Соответствие типов данных\n" +
+                                         "2. Обязательные поля\n" +
+                                         "3. Ограничения таблицы");
+                            }
 
                             userStates[chatId] = "ADMIN_PANEL";
                             adminStates.Remove(chatId);
@@ -735,8 +762,8 @@ internal class Program
                                 text: "Изменение данных отменено.",
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
-                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                    new KeyboardButton[] { "/exit" }
+                new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                new KeyboardButton[] { "/exit" }
                                 })
                                 {
                                     ResizeKeyboard = true,
@@ -757,6 +784,7 @@ internal class Program
                         }
                         break;
                     }
+
                 case "WAITING_TEST_TYPE":
                     switch (messageText)
                     {
