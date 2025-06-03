@@ -187,7 +187,7 @@ internal class Program
 
                             foreach (var row in data)
                             {
-                                response.AppendLine(string.Join("; ", row.Select(kv => $"{kv.Key}: {kv.Value}" + "\n____________________________________________________________________")));
+                                response.AppendLine(string.Join("; ", row.Select(kv => $"{kv.Key}: {kv.Value}")));
                             }
 
                             await client.SendMessage(
