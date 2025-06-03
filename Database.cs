@@ -324,7 +324,7 @@ public class Database : IDisposable
     {
         using var cmd = new MySqlCommand(
             "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName AND COLUMN_KEY = 'PRIMARY'",
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName AND COLUMN_KEY = 'PRI'",
             _connection);
 
         cmd.Parameters.AddWithValue("@tableName", tableName);
