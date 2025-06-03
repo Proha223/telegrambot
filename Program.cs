@@ -712,15 +712,6 @@ internal class Program
                                 break;
                             }
 
-                            // Логируем данные перед обновлением (для отладки)
-                            Console.WriteLine($"Updating table: {tableName}");
-                            Console.WriteLine($"Where {idColumn} = {id}");
-                            Console.WriteLine("Data to update:");
-                            foreach (var item in data)
-                            {
-                                Console.WriteLine($"{item.Key}: {item.Value} ({item.Value?.GetType()})");
-                            }
-
                             bool success = _database.UpdateTableRow(tableName, idColumn, id, data);
 
                             if (success)
@@ -730,8 +721,8 @@ internal class Program
                                     text: "Данные успешно изменены!",
                                     replyMarkup: new ReplyKeyboardMarkup(new[]
                                     {
-                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                    new KeyboardButton[] { "/exit" }
+                                        new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                        new KeyboardButton[] { "/exit" }
                                     })
                                     {
                                         ResizeKeyboard = true,
@@ -740,7 +731,6 @@ internal class Program
                             }
                             else
                             {
-                                // Более информативное сообщение об ошибке
                                 await client.SendMessage(
                                     chatId: chatId,
                                     text: "Ошибка при изменении данных. Проверьте:\n" +
@@ -895,7 +885,7 @@ internal class Program
                             return;
                         }
 
-                        userTests[chatId] = (questions, 0); // Сохраняем вопросы и текущий индекс (0)
+                        userTests[chatId] = (questions, 0);
 
                         await SendQuestion(client, chatId, questions[0], 1, questions.Count);
                         userStates[chatId] = "TEST_IN_PROGRESS";
@@ -988,7 +978,6 @@ internal class Program
             // Если состояния нет, обрабатываем основные команды
             switch (messageText)
             {
-                // 
                 case "/admin":
                     if (_database.GetUserRole(userTelegramId) != "admin")
                     {
@@ -1143,10 +1132,10 @@ internal class Program
     private static async Task SendQuestion(ITelegramBotClient client, long chatId, TestQuestion question, int questionNumber, int totalQuestions)
     {
         var options = new List<string>
-    {
-        $"1 - {question.Option1}",
-        $"2 - {question.Option2}"
-    };
+        {
+            $"1 - {question.Option1}",
+            $"2 - {question.Option2}"
+        };
 
         if (!string.IsNullOrEmpty(question.Option3))
             options.Add($"3 - {question.Option3}");
