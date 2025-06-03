@@ -21,7 +21,7 @@ internal class Program
             string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
                ?? throw new InvalidOperationException("TELEGRAM_BOT_TOKEN переменная окружения не задана в Railway");
             /*string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-                         ?? "7476081986:AAFFHHi26MlxbRuCNAA4h5zyE9Nzlz4k_Tc"; // Для локального тестирования */
+                         ?? ""; // Для локального тестирования */
 
             string connectionString;
 
@@ -187,7 +187,7 @@ internal class Program
 
                             foreach (var row in data)
                             {
-                                response.AppendLine(string.Join(", ", row.Select(kv => $"{kv.Key}: {kv.Value}")));
+                                response.AppendLine(string.Join("; ", row.Select(kv => $"{kv.Key}: {kv.Value}" + "\n____________________________________________________________________")));
                             }
 
                             await client.SendMessage(
