@@ -197,6 +197,26 @@ internal class Program
                             await ExitAdminPanel(client, chatId);
                             break;
                         }
+                        else if (messageText == "Назад") // Обработка кнопки "Назад"
+                        {
+                            var adminKeyboard = new ReplyKeyboardMarkup(new[]
+                            {
+                                new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                new KeyboardButton[] { "/exit" }
+                            })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true
+                            };
+                        
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Возврат в главное меню админ-панели:",
+                                replyMarkup: adminKeyboard);
+                        
+                            userStates[chatId] = "ADMIN_PANEL";
+                            break;
+                        }
                         var tables = _database.GetTableNames();
                         if (tables.Contains(messageText))
                         {
