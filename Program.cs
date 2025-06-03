@@ -617,12 +617,22 @@ internal class Program
                         }
                         if (!adminTableSelection.TryGetValue(chatId, out string tableName) ||
                             !adminEditingId.TryGetValue(chatId, out int id) ||
-                            !adminEditingColumn.TryGetValue(chatId, out string columnName) ||
-                            !adminEditingColumn.TryGetValue(chatId, out string idColumn))
+                            !adminEditingColumn.TryGetValue(chatId, out string columnName))
                         {
                             await client.SendMessage(
                                 chatId: chatId,
                                 text: "Ошибка состояния. Попробуйте снова.");
+                            userStates.Remove(chatId);
+                            break;
+                        }
+
+                        // Получаем имя первичного ключа для этой таблицы
+                        string idColumn = _database.GetPrimaryKeyColumn(tableName);
+                        if (string.IsNullOrEmpty(idColumn))
+                        {
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: "Не удалось определить первичный ключ таблицы.");
                             userStates.Remove(chatId);
                             break;
                         }
