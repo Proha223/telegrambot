@@ -1021,7 +1021,7 @@ internal class Program
         {
             await client.SetMyCommands(new[] 
             {
-                new BotCommand { Command = "/admin", Description = "Админ-панель" }
+                new BotCommand { Command = "/admin", Description = "Админ-панель" },
                 new BotCommand { Command = "/start", Description = "Запуск бота" },
                 new BotCommand { Command = "/theory", Description = "Изучение теории" },
                 new BotCommand { Command = "/test", Description = "Создание нового теста" },
@@ -1029,7 +1029,10 @@ internal class Program
                 new BotCommand { Command = "/exit", Description = "Выход" },
                 new BotCommand { Command = "/help", Description = "Помощь" }
             }, 
-            scope: new BotCommandScopeChat(update.Message.Chat.Id));
+            scope: new BotCommandScopeChat()
+            {
+                ChatId = new ChatId(update.Message.Chat.Id)
+            });
         }
     }
 
