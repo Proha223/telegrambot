@@ -303,19 +303,26 @@ public class Database : IDisposable
         try
         {
             var setClause = string.Join(", ", data.Keys.Select(k => $"{k} = @{k}"));
+            string sql = $"UPDATE {tableName} SET {setClause} WHERE {idColumn} = @id";
+            Console.WriteLine($"Executing SQL: {sql}"); // Логируем SQL запрос
 
-            using var cmd = new MySqlCommand($"UPDATE {tableName} SET {setClause} WHERE {idColumn} = @id", _connection);
+            using var cmd = new MySqlCommand(sql, _connection);
 
             foreach (var item in data)
             {
+                Console.WriteLine($"Param: @{item.Key} = {item.Value}"); // Логируем параметры
                 cmd.Parameters.AddWithValue($"@{item.Key}", item.Value ?? DBNull.Value);
             }
             cmd.Parameters.AddWithValue("@id", id);
 
-            return cmd.ExecuteNonQuery() > 0;
+            int affectedRows = cmd.ExecuteNonQuery();
+            Console.WriteLine($"Affected rows: {affectedRows}"); // Логируем количество затронутых строк
+
+            return affectedRows > 0;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Error in UpdateTableRow: {ex.Message}"); // Логируем ошибки
             return false;
         }
     }
