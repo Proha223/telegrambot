@@ -119,8 +119,11 @@ internal class Program
                     else if (messageText == "Изменение данных")
                     {
                         var tables = _database.GetTableNames();
-                        var tableButtons = tables.Select(t => new KeyboardButton(t)).Chunk(2).ToArray();
-
+                        var tableButtons = tables.Select(t => new KeyboardButton(t))
+                            .Concat(new[] { new KeyboardButton("Назад") })
+                            .Chunk(2)
+                            .ToArray();
+                        
                         await client.SendMessage(
                             chatId: chatId,
                             text: "Выберите таблицу для изменения:",
