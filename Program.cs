@@ -1014,7 +1014,23 @@ internal class Program
             new BotCommand { Command = "/results", Description = "Результаты тестов" },
             new BotCommand { Command = "/exit", Description = "Выход" },
             new BotCommand { Command = "/help", Description = "Помощь" }
-        });
+        }, 
+        scope: new BotCommandScopeDefault());
+
+        if (_database.GetUserRole(update.Message.From.Id) == "admin")
+        {
+            await client.SetMyCommands(new[] 
+            {
+                new BotCommand { Command = "/admin", Description = "Админ-панель" }
+                new BotCommand { Command = "/start", Description = "Запуск бота" },
+                new BotCommand { Command = "/theory", Description = "Изучение теории" },
+                new BotCommand { Command = "/test", Description = "Создание нового теста" },
+                new BotCommand { Command = "/results", Description = "Результаты тестов" },
+                new BotCommand { Command = "/exit", Description = "Выход" },
+                new BotCommand { Command = "/help", Description = "Помощь" }
+            }, 
+            scope: new BotCommandScopeChat(update.Message.Chat.Id));
+        }
     }
 
     private static async Task ExitAdminPanel(ITelegramBotClient client, long chatId)
