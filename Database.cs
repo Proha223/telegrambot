@@ -302,49 +302,20 @@ public class Database : IDisposable
     {
         try
         {
-            if (_connection.State != System.Data.ConnectionState.Open)
-            {
-                _connection.Open();
-            }
-
             var setClause = string.Join(", ", data.Keys.Select(k => $"{k} = @{k}"));
-            string sql = $"UPDATE {tableName} SET {setClause} WHERE {idColumn} = @id";
 
-            Console.WriteLine("=== SQL UPDATE DEBUG ===");
-            Console.WriteLine($"Table: {tableName}");
-            Console.WriteLine($"ID Column: {idColumn}");
-            Console.WriteLine($"Record ID: {id}");
-            Console.WriteLine($"SQL Query: {sql}");
+            using var cmd = new MySqlCommand($"UPDATE {tableName} SET {setClause} WHERE {idColumn} = @id", _connection);
 
-            using var cmd = new MySqlCommand(sql, _connection);
-
-            // Добавляем параметры данных
             foreach (var item in data)
             {
-                Console.WriteLine($"Adding param: {item.Key} = {item.Value ?? "NULL"} (Type: {item.Value?.GetType()?.Name ?? "NULL"})");
                 cmd.Parameters.AddWithValue($"@{item.Key}", item.Value ?? DBNull.Value);
             }
-
-            // Добавляем параметр ID
-            Console.WriteLine($"Adding ID param: id = {id}");
             cmd.Parameters.AddWithValue("@id", id);
 
-            // Выполняем запрос
-            int affectedRows = cmd.ExecuteNonQuery();
-            Console.WriteLine($"Affected rows: {affectedRows}");
-            Console.WriteLine("=== END DEBUG ===");
-
-            return affectedRows > 0;
+            return cmd.ExecuteNonQuery() > 0;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"!!! ERROR in UpdateTableRow !!!");
-            Console.WriteLine($"Message: {ex.Message}");
-            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
-            }
             return false;
         }
     }
