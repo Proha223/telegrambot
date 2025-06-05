@@ -8,7 +8,6 @@ internal class Program
     private static Host? mybot;
     private static Database? _database;
     private static Dictionary<long, (List<TestQuestion>, int)> userTests = new();
-    // Добавляем новые поля
     private static Dictionary<long, (string, Dictionary<string, object>)> adminStates = new();
     private static Dictionary<long, string> adminTableSelection = new();
     private static Dictionary<long, int> adminEditingId = new();
@@ -25,10 +24,8 @@ internal class Program
 
             string connectionString;
 
-            // Проверяем, работаем ли мы на Railway
             if (Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT") != null)
             {
-                // Получаем параметры подключения из переменных окружения Railway
                 string dbHost = Environment.GetEnvironmentVariable("MYSQLHOST") ?? throw new Exception("MYSQLHOST не установлен");
                 string dbPort = Environment.GetEnvironmentVariable("MYSQLPORT") ?? "3306";
                 string dbUser = Environment.GetEnvironmentVariable("MYSQLUSER") ?? throw new Exception("MYSQLUSER не установлен");
@@ -63,11 +60,10 @@ internal class Program
         if (update.Message?.Text == null || update.Message?.Chat == null || update.Message.From == null)
             return;
 
-        long userTelegramId = update.Message.From.Id; // Используем Telegram ID как внешний идентификатор
+        long userTelegramId = update.Message.From.Id;
         long chatId = update.Message.Chat.Id;
         string messageText = update.Message.Text;
 
-        // Автоматическая регистрация пользователя при первом сообщении
         if (!_database.UserExists(userTelegramId))
         {
             string firstName = update.Message.From.FirstName ?? "";
@@ -75,15 +71,12 @@ internal class Program
             string username = update.Message.From.Username ?? string.Empty;
 
             _database.RegisterUser(userTelegramId, firstName, lastName, username);
-            //Console.WriteLine($"Зарегистрирован новый пользователь: {firstName} {lastName} (@{username})");
         }
 
-        // Проверяем текущее состояние пользователя
         if (userStates.TryGetValue(chatId, out string state))
         {
             switch (state)
             {
-                // Добавляем новый case в switch (state) для обработки состояний админ-панели:
                 case "ADMIN_PANEL":
                     if (messageText == "/exit")
                     {
@@ -154,7 +147,7 @@ internal class Program
                             await ExitAdminPanel(client, chatId);
                             break;
                         }
-                        else if (messageText == "Назад") // Обработка кнопки "Назад"
+                        else if (messageText == "Назад")
                         {
                             var adminKeyboard = new ReplyKeyboardMarkup(new[]
                             {
@@ -222,7 +215,7 @@ internal class Program
                             await ExitAdminPanel(client, chatId);
                             break;
                         }
-                        else if (messageText == "Назад") // Обработка кнопки "Назад"
+                        else if (messageText == "Назад")
                         {
                             var adminKeyboard = new ReplyKeyboardMarkup(new[]
                             {
@@ -249,9 +242,9 @@ internal class Program
 
                             var editOptions = new ReplyKeyboardMarkup(new[]
                             {
-                new KeyboardButton[] { "Добавить данные", "Редактировать данные" },
-                new KeyboardButton[] { "Назад", "/exit" }
-            })
+                                new KeyboardButton[] { "Добавить данные", "Редактировать данные" },
+                                new KeyboardButton[] { "Назад", "/exit" }
+                            })
                             {
                                 ResizeKeyboard = true,
                                 OneTimeKeyboard = true
@@ -392,10 +385,8 @@ internal class Program
 
                         int currentIndex = columns.IndexOf(currentColumn);
 
-                        // Сохраняем введенное значение
                         data[currentColumn] = messageText;
 
-                        // Если это последний столбец - показываем все данные и кнопки подтверждения
                         if (currentIndex == columns.Count - 1)
                         {
                             var response = new System.Text.StringBuilder();
@@ -408,9 +399,9 @@ internal class Program
 
                             var confirmKeyboard = new ReplyKeyboardMarkup(new[]
                             {
-                new KeyboardButton[] { "Отменить", "Добавить" },
-                new KeyboardButton[] { "/exit" }
-            })
+                                new KeyboardButton[] { "Отменить", "Добавить" },
+                                new KeyboardButton[] { "/exit" }
+                            })
                             {
                                 ResizeKeyboard = true,
                                 OneTimeKeyboard = true
@@ -425,7 +416,6 @@ internal class Program
                         }
                         else
                         {
-                            // Переходим к следующему столбцу
                             string nextColumn = columns[currentIndex + 1];
                             adminEditingColumn[chatId] = nextColumn;
 
@@ -466,8 +456,8 @@ internal class Program
                                     : "Ошибка при добавлении данных. Проверьте введенные значения.",
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
-                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                    new KeyboardButton[] { "/exit" }
+                                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                    new KeyboardButton[] { "/exit" }
                                 })
                                 {
                                     ResizeKeyboard = true,
@@ -486,8 +476,8 @@ internal class Program
                                 text: "Добавление данных отменено.",
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
-                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                    new KeyboardButton[] { "/exit" }
+                                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                    new KeyboardButton[] { "/exit" }
                                 })
                                 {
                                     ResizeKeyboard = true,
@@ -626,7 +616,6 @@ internal class Program
                             break;
                         }
 
-                        // Получаем имя первичного ключа для этой таблицы
                         string idColumn = _database.GetPrimaryKeyColumn(tableName);
                         if (string.IsNullOrEmpty(idColumn))
                         {
@@ -647,7 +636,6 @@ internal class Program
                             break;
                         }
 
-                        // Сохраняем новое значение для выбранного столбца
                         row[columnName] = messageText;
 
                         var response = new System.Text.StringBuilder();
@@ -702,7 +690,6 @@ internal class Program
 
                         if (messageText == "Изменить")
                         {
-                            // Получаем имя первичного ключа
                             string idColumn = _database.GetPrimaryKeyColumn(tableName);
                             if (string.IsNullOrEmpty(idColumn))
                             {
@@ -752,8 +739,8 @@ internal class Program
                                 text: "Изменение данных отменено.",
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
-                new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
-                new KeyboardButton[] { "/exit" }
+                                    new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
+                                    new KeyboardButton[] { "/exit" }
                                 })
                                 {
                                     ResizeKeyboard = true,
@@ -844,13 +831,11 @@ internal class Program
                         break;
                     }
 
-                    // Получаем список всех тем
                     var allTopics = _database.GetTheoryTopics();
                     var selectedTopic = allTopics.FirstOrDefault(t => t.TopicName == messageText);
 
                     if (selectedTopic != default)
                     {
-                        // Получаем описание выбранной темы
                         string description = _database.GetTheoryDescription(selectedTopic.Id);
 
                         await client.SendMessage(
@@ -916,7 +901,6 @@ internal class Program
                             chatId: chatId,
                             text: isCorrect ? "Верно ✅" : "Не правильно ❌");
 
-                        // Переход к следующему вопросу или завершение теста
                         if (currentIndex + 1 < questions.Count)
                         {
                             userTests[chatId] = (questions, currentIndex + 1);
@@ -953,12 +937,12 @@ internal class Program
                                 replyMarkup: new ReplyKeyboardRemove());
                         userStates.Remove(chatId);
                     }
-                    else if (messageText == "test1" || messageText == "test2") // Изменить на названия тестов в НАСТРАИМОВОМ ТИПЕ ТЕСТА
+                    else if (messageText == "test1" || messageText == "test2") // Изменить на названия тестов в НАСТРАИМОВОМ ТИПЕ ТЕСТА или убрать
                     {
                         await client.SendMessage(
                         chatId: chatId,
                         text: $"Вы выбрали: {messageText}");
-                        userStates.Remove(chatId); // Сбрасываем состояние
+                        userStates.Remove(chatId);
                     }
                     else
                     {
@@ -975,7 +959,6 @@ internal class Program
         }
         else
         {
-            // Если состояния нет, обрабатываем основные команды
             switch (messageText)
             {
                 case "/admin":
@@ -1023,7 +1006,6 @@ internal class Program
                         break;
                     }
 
-                    // Создаем кнопки для каждой темы
                     var topicButtons = topics
                         .Select(t => new KeyboardButton(t.TopicName))
                         .Chunk(2)
