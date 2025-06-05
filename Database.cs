@@ -176,7 +176,6 @@ public class Database : IDisposable
         return result is null ? 0 : Convert.ToInt32(result);
     }
 
-    // В класс Database добавляем новые методы:
     public List<(int Id, string TopicName)> GetTheoryTopics()
     {
         var topics = new List<(int, string)>();
