@@ -762,63 +762,7 @@ internal class Program
                         break;
                     }
 
-                case "WAITING_TEST_TYPE":
-                    switch (messageText)
-                    {
-                        case "Быстрый тест":
-                            if (messageText == "/exit")
-                            {
-                                await client.SendMessage(
-                                        chatId: chatId,
-                                        text: "Вы успешно покинули тест!");
-                                userStates.Remove(chatId);
-                            }
-                            var replyKeyboardFastTest = new ReplyKeyboardMarkup(new[]
-                            {
-                                new KeyboardButton[] { "Начать" }
-                            })
-                            {
-                                ResizeKeyboard = true,
-                                OneTimeKeyboard = true
-                            };
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "Тест создан. Для продолжения нажмите кнопку \"Начать\"",
-                                replyMarkup: replyKeyboardFastTest);
-                            userStates[chatId] = "FAST_TEST_READY";
-                            break;
 
-                        case "Настраиваемый":
-                            var replyKeyboardCustom = new ReplyKeyboardMarkup(new[]
-                                {
-                                new KeyboardButton[] { "test1", "test2" }
-                            })
-                            {
-                                ResizeKeyboard = true,
-                                OneTimeKeyboard = true
-                            };
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "Выберите действие:",
-                                replyMarkup: replyKeyboardCustom);
-                            userStates[chatId] = "CUSTOM_TEST_OPTIONS";
-                            break;
-
-                        case "/exit":
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "Вы успешно покинули выбор типа теста!",
-                                replyMarkup: new ReplyKeyboardRemove());
-                            userStates.Remove(chatId);
-                            break;
-
-                        default:
-                            await client.SendMessage(
-                                chatId: chatId,
-                                text: "Для выбора типа теста используйте кнопки или текст с кнопок!\nВыход из выбора типа теста - /exit");
-                            break;
-                    }
-                    break;
 
                 case "WAITING_THEORY_TYPE":
                     if (messageText == "/exit")
@@ -1025,19 +969,26 @@ internal class Program
                     break;
 
                 case "/test":
-                    var replyKeyboardNew = new ReplyKeyboardMarkup(new[]
+                    if (messageText == "/exit")
                     {
-                        new KeyboardButton[] { "Быстрый тест", "Настраиваемый" }
-                    })
+                        await client.SendMessage(
+                                chatId: chatId,
+                                text: "Вы успешно покинули тест!");
+                        userStates.Remove(chatId);
+                    }
+                    var replyKeyboardFastTest = new ReplyKeyboardMarkup(new[]
+                    {
+                                new KeyboardButton[] { "Начать" }
+                            })
                     {
                         ResizeKeyboard = true,
                         OneTimeKeyboard = true
                     };
                     await client.SendMessage(
                         chatId: chatId,
-                        text: "Выберите тип теста",
-                        replyMarkup: replyKeyboardNew);
-                    userStates[chatId] = "WAITING_TEST_TYPE";
+                        text: "Тест создан. Для продолжения нажмите кнопку \"Начать\"",
+                        replyMarkup: replyKeyboardFastTest);
+                    userStates[chatId] = "FAST_TEST_READY";
                     break;
 
                 case "/help":
