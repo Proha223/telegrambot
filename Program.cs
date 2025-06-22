@@ -174,19 +174,39 @@ internal class Program
                             string structure = _database.GetTableStructure(messageText);
                             var data = _database.GetTableData(messageText);
 
+                            await client.SendMessage(
+                                chatId: chatId,
+                                text: structure);
+
                             var response = new System.Text.StringBuilder();
-                            response.AppendLine(structure);
                             response.AppendLine("\nДанные:");
 
                             foreach (var row in data)
                             {
-                                response.AppendLine(string.Join("; ", row.Select(kv => $"{kv.Key}: {kv.Value}")));
-                                response.AppendLine();
+                                var rowText = string.Join("; ", row.Select(kv => $"{kv.Key}: {kv.Value}"));
+
+                                if (response.Length + rowText.Length + 2 > 4000)
+                                {
+                                    await client.SendMessage(
+                                        chatId: chatId,
+                                        text: response.ToString());
+                                    response.Clear();
+                                    response.AppendLine("...продолжение данных:");
+                                }
+
+                                response.AppendLine(rowText);
+                            }
+
+                            if (response.Length > 0)
+                            {
+                                await client.SendMessage(
+                                    chatId: chatId,
+                                    text: response.ToString());
                             }
 
                             await client.SendMessage(
                                 chatId: chatId,
-                                text: response.ToString(),
+                                text: "Просмотр данных завершен.",
                                 replyMarkup: new ReplyKeyboardMarkup(new[]
                                 {
                                     new KeyboardButton[] { "Просмотр таблиц", "Изменение данных" },
